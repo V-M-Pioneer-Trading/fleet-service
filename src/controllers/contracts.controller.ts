@@ -1,4 +1,4 @@
-import { Body, Controller, Header, Path, Post, Route, Tags } from "tsoa";
+import { Body, Controller, Header, Path, Post, Route, Tags } from "@tsoa/runtime";
 import { config } from "../config";
 import { spaceTradersRequest } from "../spacetraders/client";
 import { DeliverContractRequestBody } from "../spacetraders/types";
