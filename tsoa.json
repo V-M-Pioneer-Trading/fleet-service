@@ -1,0 +1,16 @@
+{
+  "entryFile": "src/server.ts",
+  "noImplicitAdditionalProperties": "throw-on-extras",
+  "controllerPathGlobs": ["src/controllers/**/*.controller.ts"],
+  "spec": {
+    "outputDirectory": "src/generated",
+    "specVersion": 3,
+    "name": "Fleet Service API",
+    "description": "Ship action commands for the SpaceTraders mining POC",
+    "basePath": "/"
+  },
+  "routes": {
+    "routesDir": "src/generated",
+    "basePath": "/"
+  }
+}
