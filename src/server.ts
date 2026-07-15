@@ -20,9 +20,11 @@ app.use(
   })
 );
 
-RegisterRoutes(app);
+const apiRouter = express.Router();
+RegisterRoutes(apiRouter);
+app.use("/api/fleet", apiRouter);
 
-app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api/fleet/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // tsoa's generated routes forward controller/validation errors to next(err) — map each to a
 // proper status instead of letting Express fall through to a bare 500.
