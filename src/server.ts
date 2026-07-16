@@ -20,7 +20,9 @@ app.use(
   })
 );
 
-RegisterRoutes(app);
+const apiRouter = express.Router();
+RegisterRoutes(apiRouter);
+app.use("/api/fleet", apiRouter);
 
 app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

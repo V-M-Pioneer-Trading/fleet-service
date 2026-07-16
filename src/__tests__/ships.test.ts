@@ -17,7 +17,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/ships/TEST-1/orbit")
+      .post("/api/fleet/ships/TEST-1/orbit")
       .set("Authorization", "Bearer test-token");
 
     expect(res.status).toBe(200);
@@ -36,14 +36,14 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/ships/TEST-1/orbit")
+      .post("/api/fleet/ships/TEST-1/orbit")
       .set("Authorization", "Bearer bad-token");
 
     expect(res.status).toBe(401);
   });
 
   it("rejects requests missing the Authorization header with a 400", async () => {
-    const res = await request(app).post("/ships/TEST-1/orbit");
+    const res = await request(app).post("/api/fleet/ships/TEST-1/orbit");
 
     expect(res.status).toBe(400);
     expect(res.body.fields).toHaveProperty("Authorization");
@@ -57,7 +57,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/ships/TEST-1/navigate")
+      .post("/api/fleet/ships/TEST-1/navigate")
       .set("Authorization", "Bearer test-token")
       .send({ waypointSymbol: "X1-FQ86-B29" });
 
