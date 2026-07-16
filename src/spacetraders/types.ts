@@ -41,3 +41,18 @@ export interface DeliverContractRequestBody {
   tradeSymbol: string;
   units: number;
 }
+
+export interface PatchNavRequestBody {
+  flightMode: "DRIFT" | "STEALTH" | "CRUISE" | "BURN";
+}
+
+export interface PurchaseCargoRequestBody {
+  symbol: string;
+  units: number;
+}
+
+export interface TransferCargoRequestBody {
+  tradeSymbol: string;
+  units: number;
+  shipSymbol: string;
+}

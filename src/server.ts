@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: config.corsAllowedOrigin,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
