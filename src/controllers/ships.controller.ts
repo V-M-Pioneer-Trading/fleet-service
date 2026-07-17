@@ -1,11 +1,14 @@
-import { Body, Controller, Get, Header, Path, Post, Route, Tags } from "@tsoa/runtime";
+import { Body, Controller, Get, Header, Patch, Path, Post, Route, Tags } from "@tsoa/runtime";
 import { spaceTradersRequest } from "../spacetraders/client";
 import {
   ExtractRequestBody,
   NavigateRequestBody,
+  PatchNavRequestBody,
+  PurchaseCargoRequestBody,
   RefuelRequestBody,
   SellCargoRequestBody,
   Survey,
+  TransferCargoRequestBody,
 } from "../spacetraders/types";
 
 @Route("ships")
@@ -104,5 +107,35 @@ export class ShipsController extends Controller {
     @Header("Authorization") authorization: string
   ): Promise<Record<string, unknown>> {
     return spaceTradersRequest("GET", `/my/ships/${shipSymbol}/cargo`, authorization);
+  }
+
+  /** Set the ship's flight mode (CRUISE, BURN, DRIFT, STEALTH), used on subsequent navigation. */
+  @Patch("{shipSymbol}/nav")
+  public async patchNav(
+    @Path() shipSymbol: string,
+    @Header("Authorization") authorization: string,
+    @Body() body: PatchNavRequestBody
+  ): Promise<Record<string, unknown>> {
+    return spaceTradersRequest("PATCH", `/my/ships/${shipSymbol}/nav`, authorization, body);
+  }
+
+  /** Purchase a trade good into the ship's cargo hold at a docked marketplace. */
+  @Post("{shipSymbol}/purchase")
+  public async purchaseCargo(
+    @Path() shipSymbol: string,
+    @Header("Authorization") authorization: string,
+    @Body() body: PurchaseCargoRequestBody
+  ): Promise<Record<string, unknown>> {
+    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/purchase`, authorization, body);
+  }
+
+  /** Transfer cargo from this ship to another ship at the same waypoint. */
+  @Post("{shipSymbol}/transfer")
+  public async transferCargo(
+    @Path() shipSymbol: string,
+    @Header("Authorization") authorization: string,
+    @Body() body: TransferCargoRequestBody
+  ): Promise<Record<string, unknown>> {
+    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/transfer`, authorization, body);
   }
 }
