@@ -28,6 +28,21 @@ describe("ships controller", () => {
     );
   });
 
+  it("routes the call through st-gateway's /proxy path tagged interactive, never hitting SpaceTraders directly", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ data: { nav: { status: "IN_ORBIT" } } }),
+    }) as unknown as typeof fetch;
+
+    await request(app).post("/api/fleet/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
+
+    const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toMatch(/^http:\/\/localhost:3002\/proxy\/my\/ships\/TEST-1\/orbit$/);
+    expect(url).not.toContain("api.spacetraders.io");
+    expect(options.headers["X-Priority"]).toBe("interactive");
+  });
+
   it("maps a SpaceTraders 401 to a 401 response instead of crashing", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
