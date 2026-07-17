@@ -17,7 +17,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/ships/TEST-1/orbit")
+      .post("/api/fleet/ships/TEST-1/orbit")
       .set("Authorization", "Bearer test-token");
 
     expect(res.status).toBe(200);
@@ -28,6 +28,21 @@ describe("ships controller", () => {
     );
   });
 
+  it("routes the call through st-gateway's /proxy path tagged interactive, never hitting SpaceTraders directly", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ data: { nav: { status: "IN_ORBIT" } } }),
+    }) as unknown as typeof fetch;
+
+    await request(app).post("/api/fleet/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
+
+    const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toMatch(/^http:\/\/localhost:3002\/proxy\/my\/ships\/TEST-1\/orbit$/);
+    expect(url).not.toContain("api.spacetraders.io");
+    expect(options.headers["X-Priority"]).toBe("interactive");
+  });
+
   it("maps a SpaceTraders 401 to a 401 response instead of crashing", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
@@ -36,14 +51,14 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/ships/TEST-1/orbit")
+      .post("/api/fleet/ships/TEST-1/orbit")
       .set("Authorization", "Bearer bad-token");
 
     expect(res.status).toBe(401);
   });
 
   it("rejects requests missing the Authorization header with a 400", async () => {
-    const res = await request(app).post("/ships/TEST-1/orbit");
+    const res = await request(app).post("/api/fleet/ships/TEST-1/orbit");
 
     expect(res.status).toBe(400);
     expect(res.body.fields).toHaveProperty("Authorization");
@@ -57,7 +72,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/ships/TEST-1/navigate")
+      .post("/api/fleet/ships/TEST-1/navigate")
       .set("Authorization", "Bearer test-token")
       .send({ waypointSymbol: "X1-FQ86-B29" });
 
