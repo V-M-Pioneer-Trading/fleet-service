@@ -80,4 +80,42 @@ describe("ships controller", () => {
     const [, options] = (global.fetch as jest.Mock).mock.calls[0];
     expect(JSON.parse(options.body)).toEqual({ waypointSymbol: "X1-FQ86-B29" });
   });
+
+  it("forwards a purchase-ship request to SpaceTraders and returns the new ship", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: async () =>
+        JSON.stringify({
+          data: {
+            agent: { credits: 1000 },
+            ship: { symbol: "TEST-2" },
+            transaction: { shipType: "SHIP_MINING_DRONE", price: 50000 },
+          },
+        }),
+    }) as unknown as typeof fetch;
+
+    const res = await request(app)
+      .post("/api/fleet/ships/purchase")
+      .set("Authorization", "Bearer test-token")
+      .send({ shipType: "SHIP_MINING_DRONE", waypointSymbol: "X1-FQ86-B29" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      data: {
+        agent: { credits: 1000 },
+        ship: { symbol: "TEST-2" },
+        transaction: { shipType: "SHIP_MINING_DRONE", price: 50000 },
+      },
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/my/ships"),
+      expect.objectContaining({ method: "POST" })
+    );
+    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(JSON.parse(options.body)).toEqual({
+      shipType: "SHIP_MINING_DRONE",
+      waypointSymbol: "X1-FQ86-B29",
+    });
+  });
 });

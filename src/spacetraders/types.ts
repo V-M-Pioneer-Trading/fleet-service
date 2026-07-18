@@ -56,3 +56,8 @@ export interface TransferCargoRequestBody {
   units: number;
   shipSymbol: string;
 }
+
+export interface PurchaseShipRequestBody {
+  shipType: string;
+  waypointSymbol: string;
+}

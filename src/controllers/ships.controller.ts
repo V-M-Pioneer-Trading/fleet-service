@@ -5,6 +5,7 @@ import {
   NavigateRequestBody,
   PatchNavRequestBody,
   PurchaseCargoRequestBody,
+  PurchaseShipRequestBody,
   RefuelRequestBody,
   SellCargoRequestBody,
   Survey,
@@ -127,6 +128,15 @@ export class ShipsController extends Controller {
     @Body() body: PurchaseCargoRequestBody
   ): Promise<Record<string, unknown>> {
     return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/purchase`, authorization, body);
+  }
+
+  /** Purchase a new ship. Requires an existing ship of yours docked at a waypoint with a shipyard. */
+  @Post("purchase")
+  public async purchaseShip(
+    @Header("Authorization") authorization: string,
+    @Body() body: PurchaseShipRequestBody
+  ): Promise<Record<string, unknown>> {
+    return spaceTradersRequest("POST", "/my/ships", authorization, body);
   }
 
   /** Transfer cargo from this ship to another ship at the same waypoint. */
