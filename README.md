@@ -3,7 +3,8 @@
 Ship action commands (navigate, orbit, dock, extract, survey, refuel, sell, cargo, cooldown)
 and contract delivery for the SpaceTraders mining POC.
 
-Stateless — every request calls SpaceTraders directly and returns its response. No token is
+Stateless — every request routes through `st-gateway`'s shared rate budget (tagged
+`interactive`) rather than hitting SpaceTraders directly, and returns its response. No token is
 ever stored: the caller's `Authorization: Bearer <token>` header is forwarded as-is, same
 pattern as `agent-service` and `navigation-service`.
 
@@ -19,20 +20,20 @@ Or for iterative development: `npm run dev` (build + start).
 
 The service listens on port `3001` by default.
 
-Swagger UI: http://localhost:3001/swagger
+Swagger UI: http://localhost:3001/api/fleet/swagger
 
 ### Environment variables
 
-| Variable                | Default                              | Description |
-|-------------------------|---------------------------------------|--------------|
-| `PORT`                  | `3001`                                | HTTP port |
-| `SPACETRADERS_BASE_URL` | `https://api.spacetraders.io/v2`      | SpaceTraders API base URL |
-| `AGENT_SERVICE_URL`     | `http://localhost:8081`               | agent-service base URL, used to record contract deliveries |
-| `CORS_ALLOWED_ORIGIN`   | `http://localhost:3000`               | Frontend origin allowed to call this service |
+| Variable            | Default                              | Description |
+|---------------------|---------------------------------------|--------------|
+| `PORT`               | `3001`                                | HTTP port |
+| `ST_GATEWAY_URL`     | `http://localhost:3002`               | st-gateway base URL; all SpaceTraders calls route through its `/proxy` path |
+| `AGENT_SERVICE_URL`  | `http://localhost:8080/api/agent`     | agent-service base URL, used to record contract deliveries |
+| `CORS_ALLOWED_ORIGIN`| `http://localhost:3000`               | Frontend origin allowed to call this service |
 
 ## Endpoints
 
-All require `Authorization: Bearer <token>`.
+All routes are mounted under `/api/fleet` and require `Authorization: Bearer <token>`.
 
 - `POST /ships/{shipSymbol}/orbit`
 - `POST /ships/{shipSymbol}/dock`
@@ -42,6 +43,8 @@ All require `Authorization: Bearer <token>`.
 - `POST /ships/{shipSymbol}/survey`
 - `POST /ships/{shipSymbol}/refuel` — optional body `{ units?, fromCargo? }`
 - `POST /ships/{shipSymbol}/sell` — body `{ symbol, units }`
+- `POST /ships/purchase` — body `{ shipType, waypointSymbol }`; requires an existing ship of
+  yours docked at a waypoint with a shipyard
 - `GET  /ships/{shipSymbol}/cooldown`
 - `GET  /ships/{shipSymbol}/cargo`
 - `POST /contracts/{contractId}/deliver` — body `{ shipSymbol, tradeSymbol, units }`; calls
