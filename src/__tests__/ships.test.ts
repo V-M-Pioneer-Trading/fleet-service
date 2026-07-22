@@ -28,7 +28,7 @@ describe("ships controller", () => {
     );
   });
 
-  it("routes the call through st-gateway's /proxy path tagged interactive, never hitting SpaceTraders directly", async () => {
+  it("routes the call through st-gateway's /proxy path, never hitting SpaceTraders directly", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -37,10 +37,49 @@ describe("ships controller", () => {
 
     await request(app).post("/api/fleet/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
 
-    const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
+    const [url] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toMatch(/^http:\/\/localhost:3002\/proxy\/my\/ships\/TEST-1\/orbit$/);
     expect(url).not.toContain("api.spacetraders.io");
+  });
+
+  // meta#37: fleet-service used to hardcode X-Priority: interactive on every
+  // outbound call, so automation-service's background autopilot traffic
+  // jumped st-gateway's queue meant to keep the browser UI responsive. It now
+  // forwards whatever the caller (command-interface vs automation-service)
+  // itself declared.
+  it("forwards the caller's X-Priority: interactive through to st-gateway", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ data: { nav: { status: "IN_ORBIT" } } }),
+    }) as unknown as typeof fetch;
+
+    await request(app)
+      .post("/api/fleet/ships/TEST-1/orbit")
+      .set("Authorization", "Bearer test-token")
+      .set("X-Priority", "interactive");
+
+    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
     expect(options.headers["X-Priority"]).toBe("interactive");
+  });
+
+  it("degrades a missing or non-interactive X-Priority to background, never defaulting to interactive", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ data: { nav: { status: "IN_ORBIT" } } }),
+    }) as unknown as typeof fetch;
+
+    await request(app).post("/api/fleet/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
+    let [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(options.headers["X-Priority"]).toBe("background"); // no header at all — automation-service's case
+
+    await request(app)
+      .post("/api/fleet/ships/TEST-1/orbit")
+      .set("Authorization", "Bearer test-token")
+      .set("X-Priority", "bogus");
+    [, options] = (global.fetch as jest.Mock).mock.calls[1];
+    expect(options.headers["X-Priority"]).toBe("background"); // anything but exactly "interactive"
   });
 
   it("maps a SpaceTraders 401 to a 401 response instead of crashing", async () => {

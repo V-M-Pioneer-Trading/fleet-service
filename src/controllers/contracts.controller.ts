@@ -17,13 +17,15 @@ export class ContractsController extends Controller {
   public async deliver(
     @Path() contractId: string,
     @Header("Authorization") authorization: string,
-    @Body() body: DeliverContractRequestBody
+    @Body() body: DeliverContractRequestBody,
+    @Header("X-Priority") priority?: string
   ): Promise<Record<string, unknown>> {
     const result = await spaceTradersRequest<Record<string, unknown>>(
       "POST",
       `/my/contracts/${contractId}/deliver`,
       authorization,
-      body
+      body,
+      priority
     );
 
     await recordDelivery(contractId, authorization, body);
