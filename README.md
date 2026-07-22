@@ -28,12 +28,12 @@ Swagger UI: http://localhost:3001/api/fleet/swagger
 |---------------------|---------------------------------------|--------------|
 | `PORT`               | `3001`                                | HTTP port |
 | `ST_GATEWAY_URL`     | `http://localhost:3002`               | st-gateway base URL; all SpaceTraders calls route through its `/proxy` path |
-| `AGENT_SERVICE_URL`  | `http://localhost:8080/api/agent`     | agent-service base URL, used to record contract deliveries |
+| `AGENT_SERVICE_URL`  | `http://localhost:8080/api/agent/v1`  | agent-service base URL, used to record contract deliveries |
 | `CORS_ALLOWED_ORIGIN`| `http://localhost:3000`               | Frontend origin allowed to call this service |
 
 ## Endpoints
 
-All routes are mounted under `/api/fleet` and require `Authorization: Bearer <token>`.
+All routes are mounted under `/api/fleet/v1` and require `Authorization: Bearer <token>`.
 
 - `POST /ships/{shipSymbol}/orbit`
 - `POST /ships/{shipSymbol}/dock`

@@ -22,7 +22,7 @@ app.use(
 
 const apiRouter = express.Router();
 RegisterRoutes(apiRouter);
-app.use("/api/fleet", apiRouter);
+app.use("/api/fleet/v1", apiRouter);
 
 app.use("/api/fleet/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

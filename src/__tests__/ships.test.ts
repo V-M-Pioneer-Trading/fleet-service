@@ -17,7 +17,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/api/fleet/ships/TEST-1/orbit")
+      .post("/api/fleet/v1/ships/TEST-1/orbit")
       .set("Authorization", "Bearer test-token");
 
     expect(res.status).toBe(200);
@@ -35,7 +35,7 @@ describe("ships controller", () => {
       text: async () => JSON.stringify({ data: { nav: { status: "IN_ORBIT" } } }),
     }) as unknown as typeof fetch;
 
-    await request(app).post("/api/fleet/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
+    await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
 
     const [url] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toMatch(/^http:\/\/localhost:3002\/proxy\/my\/ships\/TEST-1\/orbit$/);
@@ -55,7 +55,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     await request(app)
-      .post("/api/fleet/ships/TEST-1/orbit")
+      .post("/api/fleet/v1/ships/TEST-1/orbit")
       .set("Authorization", "Bearer test-token")
       .set("X-Priority", "interactive");
 
@@ -70,12 +70,12 @@ describe("ships controller", () => {
       text: async () => JSON.stringify({ data: { nav: { status: "IN_ORBIT" } } }),
     }) as unknown as typeof fetch;
 
-    await request(app).post("/api/fleet/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
+    await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("Authorization", "Bearer test-token");
     let [, options] = (global.fetch as jest.Mock).mock.calls[0];
     expect(options.headers["X-Priority"]).toBe("background"); // no header at all — automation-service's case
 
     await request(app)
-      .post("/api/fleet/ships/TEST-1/orbit")
+      .post("/api/fleet/v1/ships/TEST-1/orbit")
       .set("Authorization", "Bearer test-token")
       .set("X-Priority", "bogus");
     [, options] = (global.fetch as jest.Mock).mock.calls[1];
@@ -90,14 +90,14 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/api/fleet/ships/TEST-1/orbit")
+      .post("/api/fleet/v1/ships/TEST-1/orbit")
       .set("Authorization", "Bearer bad-token");
 
     expect(res.status).toBe(401);
   });
 
   it("rejects requests missing the Authorization header with a 400", async () => {
-    const res = await request(app).post("/api/fleet/ships/TEST-1/orbit");
+    const res = await request(app).post("/api/fleet/v1/ships/TEST-1/orbit");
 
     expect(res.status).toBe(400);
     expect(res.body.fields).toHaveProperty("Authorization");
@@ -111,7 +111,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/api/fleet/ships/TEST-1/navigate")
+      .post("/api/fleet/v1/ships/TEST-1/navigate")
       .set("Authorization", "Bearer test-token")
       .send({ waypointSymbol: "X1-FQ86-B29" });
 
@@ -135,7 +135,7 @@ describe("ships controller", () => {
     }) as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/api/fleet/ships/purchase")
+      .post("/api/fleet/v1/ships/purchase")
       .set("Authorization", "Bearer test-token")
       .send({ shipType: "SHIP_MINING_DRONE", waypointSymbol: "X1-FQ86-B29" });
 

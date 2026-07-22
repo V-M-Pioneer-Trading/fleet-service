@@ -26,7 +26,7 @@ describe("contracts controller: deliver", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/api/fleet/contracts/abc/deliver")
+      .post("/api/fleet/v1/contracts/abc/deliver")
       .set("Authorization", "Bearer test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
@@ -48,7 +48,7 @@ describe("contracts controller: deliver", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/api/fleet/contracts/abc/deliver")
+      .post("/api/fleet/v1/contracts/abc/deliver")
       .set("Authorization", "Bearer test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
@@ -65,7 +65,7 @@ describe("contracts controller: deliver", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const res = await request(app)
-      .post("/api/fleet/contracts/abc/deliver")
+      .post("/api/fleet/v1/contracts/abc/deliver")
       .set("Authorization", "Bearer test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
