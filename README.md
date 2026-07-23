@@ -1,7 +1,9 @@
 # Fleet Service
 
-Ship action commands (navigate, orbit, dock, extract, survey, refuel, sell, cargo, cooldown)
-and contract delivery for the SpaceTraders mining POC.
+Ship action commands (navigate, orbit, dock, extract, survey, refuel, cargo, cooldown)
+and contract delivery for the SpaceTraders mining POC. Ship/cargo purchases and cargo
+sells live in `agent-service` instead, since those are the actions that spend or earn
+credits and agent-service owns the resulting transaction history.
 
 Stateless — every request routes through `st-gateway`'s shared rate budget (tagged
 `interactive`) rather than hitting SpaceTraders directly, and returns its response. No token is
@@ -42,9 +44,6 @@ All routes are mounted under `/api/fleet/v1` and require `Authorization: Bearer 
 - `POST /ships/{shipSymbol}/extract/survey` — body: a `Survey` object from `POST /survey`
 - `POST /ships/{shipSymbol}/survey`
 - `POST /ships/{shipSymbol}/refuel` — optional body `{ units?, fromCargo? }`
-- `POST /ships/{shipSymbol}/sell` — body `{ symbol, units }`
-- `POST /ships/purchase` — body `{ shipType, waypointSymbol }`; requires an existing ship of
-  yours docked at a waypoint with a shipyard
 - `GET  /ships/{shipSymbol}/cooldown`
 - `GET  /ships/{shipSymbol}/cargo`
 - `POST /contracts/{contractId}/deliver` — body `{ shipSymbol, tradeSymbol, units }`; calls

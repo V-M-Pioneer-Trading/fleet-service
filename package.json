@@ -1,7 +1,7 @@
 {
   "name": "fleet-service",
   "version": "1.0.0",
-  "description": "Ship action commands (navigate, orbit, dock, extract, sell, etc.) for the SpaceTraders mining POC",
+  "description": "Ship action commands (navigate, orbit, dock, extract, etc.) for the SpaceTraders mining POC",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsoa spec-and-routes && tsc",
