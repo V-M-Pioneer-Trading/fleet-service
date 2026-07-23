@@ -20,9 +20,13 @@ app.use(
   })
 );
 
-app.get("/health", (_req, res) => {
+const health = (_req: Request, res: Response) => {
   res.json({ status: "ok" });
-});
+};
+// Bare for local dev/compose; also mounted under /api/fleet since production
+// CloudFront only routes requests matching a configured path pattern.
+app.get("/health", health);
+app.get("/api/fleet/health", health);
 
 const apiRouter = express.Router();
 RegisterRoutes(apiRouter);
