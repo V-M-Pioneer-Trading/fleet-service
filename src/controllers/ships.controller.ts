@@ -4,10 +4,7 @@ import {
   ExtractRequestBody,
   NavigateRequestBody,
   PatchNavRequestBody,
-  PurchaseCargoRequestBody,
-  PurchaseShipRequestBody,
   RefuelRequestBody,
-  SellCargoRequestBody,
   Survey,
   TransferCargoRequestBody,
 } from "../spacetraders/types";
@@ -89,17 +86,6 @@ export class ShipsController extends Controller {
     return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/refuel`, authorization, body, priority);
   }
 
-  /** Sell cargo the ship is carrying at a docked marketplace. */
-  @Post("{shipSymbol}/sell")
-  public async sell(
-    @Path() shipSymbol: string,
-    @Header("Authorization") authorization: string,
-    @Body() body: SellCargoRequestBody,
-    @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/sell`, authorization, body, priority);
-  }
-
   /** Get the ship's current cooldown (e.g. after extract/survey). */
   @Get("{shipSymbol}/cooldown")
   public async cooldown(
@@ -129,27 +115,6 @@ export class ShipsController extends Controller {
     @Header("X-Priority") priority?: string
   ): Promise<Record<string, unknown>> {
     return spaceTradersRequest("PATCH", `/my/ships/${shipSymbol}/nav`, authorization, body, priority);
-  }
-
-  /** Purchase a trade good into the ship's cargo hold at a docked marketplace. */
-  @Post("{shipSymbol}/purchase")
-  public async purchaseCargo(
-    @Path() shipSymbol: string,
-    @Header("Authorization") authorization: string,
-    @Body() body: PurchaseCargoRequestBody,
-    @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/purchase`, authorization, body, priority);
-  }
-
-  /** Purchase a new ship. Requires an existing ship of yours docked at a waypoint with a shipyard. */
-  @Post("purchase")
-  public async purchaseShip(
-    @Header("Authorization") authorization: string,
-    @Body() body: PurchaseShipRequestBody,
-    @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", "/my/ships", authorization, body, priority);
   }
 
   /** Transfer cargo from this ship to another ship at the same waypoint. */

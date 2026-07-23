@@ -31,11 +31,6 @@ export interface RefuelRequestBody {
   fromCargo?: boolean;
 }
 
-export interface SellCargoRequestBody {
-  symbol: string;
-  units: number;
-}
-
 export interface DeliverContractRequestBody {
   shipSymbol: string;
   tradeSymbol: string;
@@ -46,18 +41,8 @@ export interface PatchNavRequestBody {
   flightMode: "DRIFT" | "STEALTH" | "CRUISE" | "BURN";
 }
 
-export interface PurchaseCargoRequestBody {
-  symbol: string;
-  units: number;
-}
-
 export interface TransferCargoRequestBody {
   tradeSymbol: string;
   units: number;
   shipSymbol: string;
-}
-
-export interface PurchaseShipRequestBody {
-  shipType: string;
-  waypointSymbol: string;
 }
