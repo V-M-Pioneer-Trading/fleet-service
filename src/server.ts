@@ -12,10 +12,7 @@ import { UpstreamError } from "./spacetraders/errors";
 export const app = express();
 
 // Every response here is either a live status check or the result of an
-// action against SpaceTraders — none of it is meaningfully cacheable, and
-// Express's default auto-generated ETag turns a fixed-interval poller (the
-// health check) into a 304-with-no-body once a client's If-None-Match
-// matches, which callers checking res.ok read as "down".
+// action against SpaceTraders — none of it is meaningfully cacheable
 app.set("etag", false);
 
 app.use(express.json());
