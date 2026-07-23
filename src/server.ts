@@ -11,6 +11,10 @@ import { UpstreamError } from "./spacetraders/errors";
 
 export const app = express();
 
+// Every response here is either a live status check or the result of an
+// action against SpaceTraders — none of it is meaningfully cacheable
+app.set("etag", false);
+
 app.use(express.json());
 app.use(
   cors({
@@ -21,6 +25,7 @@ app.use(
 );
 
 const health = (_req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
   res.json({ status: "ok" });
 };
 // Bare for local dev/compose; also mounted under /api/fleet since production
