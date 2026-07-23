@@ -20,6 +20,10 @@ app.use(
   })
 );
 
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
 const apiRouter = express.Router();
 RegisterRoutes(apiRouter);
 app.use("/api/fleet/v1", apiRouter);
