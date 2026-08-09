@@ -20,7 +20,7 @@ app.use(
   cors({
     origin: config.corsAllowedOrigin,
     methods: ["GET", "POST", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Priority"],
   })
 );
 
