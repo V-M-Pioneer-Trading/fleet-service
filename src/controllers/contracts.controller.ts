@@ -16,19 +16,19 @@ export class ContractsController extends Controller {
   @Post("{contractId}/deliver")
   public async deliver(
     @Path() contractId: string,
-    @Header("Authorization") authorization: string,
+    @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Body() body: DeliverContractRequestBody,
     @Header("X-Priority") priority?: string
   ): Promise<Record<string, unknown>> {
     const result = await spaceTradersRequest<Record<string, unknown>>(
       "POST",
       `/my/contracts/${contractId}/deliver`,
-      authorization,
+      `Bearer ${spaceTradersToken}`,
       body,
       priority
     );
 
-    await recordDelivery(contractId, authorization, body);
+    await recordDelivery(contractId, spaceTradersToken, body);
 
     return result;
   }
@@ -36,7 +36,7 @@ export class ContractsController extends Controller {
 
 async function recordDelivery(
   contractId: string,
-  authorization: string,
+  spaceTradersToken: string,
   body: DeliverContractRequestBody
 ): Promise<void> {
   try {
@@ -44,7 +44,7 @@ async function recordDelivery(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authorization,
+        "X-SpaceTraders-Token": spaceTradersToken,
       },
       body: JSON.stringify({
         shipSymbol: body.shipSymbol,
