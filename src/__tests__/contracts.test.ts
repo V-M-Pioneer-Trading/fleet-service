@@ -1,7 +1,9 @@
 import request from "supertest";
-import { app } from "../server";
+import { createTestApp } from "../testSupport/createTestApp";
+import { bearer } from "../testSupport/authTokens";
 
 describe("contracts controller: deliver", () => {
+  const app = createTestApp();
   const originalFetch = global.fetch;
 
   afterEach(() => {
@@ -27,7 +29,8 @@ describe("contracts controller: deliver", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
-      .set("Authorization", "Bearer test-token")
+      .set("Authorization", bearer())
+      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     expect(res.status).toBe(200);
@@ -49,7 +52,8 @@ describe("contracts controller: deliver", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
-      .set("Authorization", "Bearer test-token")
+      .set("Authorization", bearer())
+      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     expect(res.status).toBe(200);
@@ -66,7 +70,8 @@ describe("contracts controller: deliver", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
-      .set("Authorization", "Bearer test-token")
+      .set("Authorization", bearer())
+      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     expect(res.status).toBe(400);

@@ -1,5 +1,7 @@
 import request from "supertest";
-import { app } from "../server";
+import { createTestApp } from "../testSupport/createTestApp";
+
+const app = createTestApp();
 
 describe("health endpoint", () => {
   it.each(["/health", "/api/fleet/health"])(
