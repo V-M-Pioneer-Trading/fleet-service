@@ -1,6 +1,6 @@
 import { Body, Controller, Header, Path, Post, Route, Tags } from "@tsoa/runtime";
 import { config } from "../config";
-import { spaceTradersRequest } from "../spacetraders/client";
+import { contractPath, spaceTradersRequest } from "../spacetraders/client";
 import { DeliverContractRequestBody } from "../spacetraders/types";
 
 @Route("contracts")
@@ -22,8 +22,8 @@ export class ContractsController extends Controller {
   ): Promise<Record<string, unknown>> {
     const result = await spaceTradersRequest<Record<string, unknown>>(
       "POST",
-      `/my/contracts/${contractId}/deliver`,
-      `Bearer ${spaceTradersToken}`,
+      contractPath(contractId, "deliver"),
+      spaceTradersToken,
       body,
       priority
     );
@@ -39,8 +39,12 @@ async function recordDelivery(
   spaceTradersToken: string,
   body: DeliverContractRequestBody
 ): Promise<void> {
+  // Encoded for the same reason as the SpaceTraders paths: contractId is
+  // caller-supplied and would otherwise be able to steer this at another
+  // agent-service route.
+  const url = `${config.agentServiceUrl}/contracts/${encodeURIComponent(contractId)}/deliveries`;
   try {
-    const res = await fetch(`${config.agentServiceUrl}/contracts/${contractId}/deliveries`, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -51,6 +55,9 @@ async function recordDelivery(
         tradeSymbol: body.tradeSymbol,
         units: body.units,
       }),
+      // Without a deadline a hung agent-service holds the caller's delivery
+      // response open, even though this call is best-effort bookkeeping.
+      signal: AbortSignal.timeout(config.upstreamTimeoutMs),
     });
     if (!res.ok) {
       console.error(

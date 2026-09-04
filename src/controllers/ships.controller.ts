@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Header, Patch, Path, Post, Route, Tags } from "@tsoa/runtime";
-import { spaceTradersRequest } from "../spacetraders/client";
+import { shipPath, spaceTradersRequest } from "../spacetraders/client";
 import {
   ExtractRequestBody,
   NavigateRequestBody,
@@ -8,6 +8,9 @@ import {
   Survey,
   TransferCargoRequestBody,
 } from "../spacetraders/types";
+
+/** Every route here answers with SpaceTraders' response body, unmodified. */
+type ShipActionResponse = Record<string, unknown>;
 
 // `Authorization` on every route here is the Clerk session server.ts's auth
 // middleware already verified before a request reaches a controller method —
@@ -23,8 +26,8 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/orbit`, `Bearer ${spaceTradersToken}`, undefined, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "orbit"), spaceTradersToken, undefined, priority);
   }
 
   /** Dock a ship at its current waypoint. */
@@ -33,8 +36,8 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/dock`, `Bearer ${spaceTradersToken}`, undefined, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "dock"), spaceTradersToken, undefined, priority);
   }
 
   /** Navigate a ship (must be in orbit) to a waypoint in the same system. */
@@ -44,8 +47,8 @@ export class ShipsController extends Controller {
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Body() body: NavigateRequestBody,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/navigate`, `Bearer ${spaceTradersToken}`, body, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "navigate"), spaceTradersToken, body, priority);
   }
 
   /** Extract resources at the ship's current waypoint. Optionally targets a prior survey. */
@@ -55,8 +58,8 @@ export class ShipsController extends Controller {
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Body() body?: ExtractRequestBody,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/extract`, `Bearer ${spaceTradersToken}`, body, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "extract"), spaceTradersToken, body, priority);
   }
 
   /** Extract resources using a previously created survey. */
@@ -66,14 +69,8 @@ export class ShipsController extends Controller {
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Body() body: Survey,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest(
-      "POST",
-      `/my/ships/${shipSymbol}/extract/survey`,
-      `Bearer ${spaceTradersToken}`,
-      body,
-      priority
-    );
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "extract/survey"), spaceTradersToken, body, priority);
   }
 
   /** Create a resource survey at the ship's current waypoint. */
@@ -82,8 +79,8 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/survey`, `Bearer ${spaceTradersToken}`, undefined, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "survey"), spaceTradersToken, undefined, priority);
   }
 
   /** Refuel a docked ship at a waypoint with a market that sells fuel. */
@@ -93,8 +90,8 @@ export class ShipsController extends Controller {
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Body() body?: RefuelRequestBody,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/refuel`, `Bearer ${spaceTradersToken}`, body, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "refuel"), spaceTradersToken, body, priority);
   }
 
   /** Get the ship's current cooldown (e.g. after extract/survey). */
@@ -103,14 +100,8 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest(
-      "GET",
-      `/my/ships/${shipSymbol}/cooldown`,
-      `Bearer ${spaceTradersToken}`,
-      undefined,
-      priority
-    );
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("GET", shipPath(shipSymbol, "cooldown"), spaceTradersToken, undefined, priority);
   }
 
   /** Get the ship's current cargo hold contents. */
@@ -119,8 +110,8 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("GET", `/my/ships/${shipSymbol}/cargo`, `Bearer ${spaceTradersToken}`, undefined, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("GET", shipPath(shipSymbol, "cargo"), spaceTradersToken, undefined, priority);
   }
 
   /** Set the ship's flight mode (CRUISE, BURN, DRIFT, STEALTH), used on subsequent navigation. */
@@ -130,8 +121,8 @@ export class ShipsController extends Controller {
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Body() body: PatchNavRequestBody,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("PATCH", `/my/ships/${shipSymbol}/nav`, `Bearer ${spaceTradersToken}`, body, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("PATCH", shipPath(shipSymbol, "nav"), spaceTradersToken, body, priority);
   }
 
   /** Transfer cargo from this ship to another ship at the same waypoint. */
@@ -141,7 +132,7 @@ export class ShipsController extends Controller {
     @Header("X-SpaceTraders-Token") spaceTradersToken: string,
     @Body() body: TransferCargoRequestBody,
     @Header("X-Priority") priority?: string
-  ): Promise<Record<string, unknown>> {
-    return spaceTradersRequest("POST", `/my/ships/${shipSymbol}/transfer`, `Bearer ${spaceTradersToken}`, body, priority);
+  ): Promise<ShipActionResponse> {
+    return spaceTradersRequest("POST", shipPath(shipSymbol, "transfer"), spaceTradersToken, body, priority);
   }
 }

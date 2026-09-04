@@ -40,6 +40,25 @@ describe("contracts controller: deliver", () => {
     expect(fetchMock.mock.calls[1][0]).toContain("/contracts/abc/deliveries");
   });
 
+  // Same unencoded-interpolation bug as the ship symbol, on both outbound
+  // calls: `../../agent` in a contract id walked out of `/proxy/my/contracts/`
+  // upstream and out of agent-service's `/contracts/` path as well.
+  it("encodes the contract id in both the SpaceTraders and agent-service URLs", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, text: async () => "{}" });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await request(app)
+      .post(`/api/fleet/v1/contracts/${encodeURIComponent("../../agent")}/deliver`)
+      .set("Authorization", bearer())
+      .set("X-SpaceTraders-Token", "test-token")
+      .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
+
+    expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe("/proxy/my/contracts/..%2F..%2Fagent/deliver");
+    expect(new URL(fetchMock.mock.calls[1][0]).pathname).toBe("/api/agent/v1/contracts/..%2F..%2Fagent/deliveries");
+  });
+
   it("still returns the successful delivery if recording it in agent-service fails", async () => {
     const fetchMock = jest.fn();
     fetchMock.mockResolvedValueOnce({

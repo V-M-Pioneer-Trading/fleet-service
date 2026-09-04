@@ -97,6 +97,23 @@ describe("ships controller", () => {
     expect(options.headers["X-Priority"]).toBe("background"); // anything but exactly "interactive"
   });
 
+  // A ship symbol arrives in the URL path and used to be interpolated into the
+  // upstream path unencoded, so `../../agent` walked out of `/proxy/my/ships/`
+  // — node's URL parser normalised the result to `http://localhost:3002/proxy/agent/orbit`,
+  // letting any caller with fleet:control aim this service at gateway routes it
+  // never meant to expose.
+  it("encodes the ship symbol so it cannot escape the upstream path", async () => {
+    mockOkFetch({ data: {} });
+
+    await request(app)
+      .post(`/api/fleet/v1/ships/${encodeURIComponent("../../agent")}/orbit`)
+      .set("Authorization", bearer())
+      .set("X-SpaceTraders-Token", "test-token");
+
+    const [url] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(new URL(url).pathname).toBe("/proxy/my/ships/..%2F..%2Fagent/orbit");
+  });
+
   it("maps a SpaceTraders 401 to a 401 response instead of crashing", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
@@ -180,6 +197,21 @@ describe("ships controller", () => {
 
       const res = await request(app)
         .get("/api/fleet/v1/ships/TEST-1/cooldown")
+        .set("Authorization", bearerWithoutScope())
+        .set("X-SpaceTraders-Token", "x");
+
+      expect(res.status).toBe(200);
+    });
+
+    // Old behaviour: the read/mutate split keyed on `req.method === "GET"`
+    // alone, so HEAD — which Express answers from the same GET handler —
+    // demanded fleet:control for a body-less version of a route the very same
+    // session could already GET.
+    it("treats HEAD on a read as a read, not a mutation", async () => {
+      mockOkFetch({ data: { expiration: null } });
+
+      const res = await request(app)
+        .head("/api/fleet/v1/ships/TEST-1/cooldown")
         .set("Authorization", bearerWithoutScope())
         .set("X-SpaceTraders-Token", "x");
 
