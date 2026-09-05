@@ -26,6 +26,10 @@ jobs:
 
       - run: npm ci
 
+      # tsoa codegen + tsc. ts-jest only typechecks what a test imports, so
+      # without this a type error in an unreferenced file reaches main.
+      - run: npm run build
+
       - run: npm test
 
   docker:

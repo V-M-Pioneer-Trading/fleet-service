@@ -6,6 +6,17 @@ services:
       - "3001:3001"
     environment:
       PORT: 3001
-      SPACETRADERS_BASE_URL: https://api.spacetraders.io/v2
+      # Every SpaceTraders call goes through st-gateway's shared rate budget.
+      # The service has no SpaceTraders base URL of its own by design.
+      ST_GATEWAY_URL: http://host.docker.internal:3002
       AGENT_SERVICE_URL: http://host.docker.internal:8080/api/agent/v1
       CORS_ALLOWED_ORIGIN: http://localhost:3000
+      # Required: the service refuses to start without a trust anchor.
+      # Put Clerk's PEM public key at ./clerk-jwt-key.pem (gitignored).
+      CLERK_JWT_KEY_FILE: /run/secrets/clerk-jwt-key
+      # CLERK_ISSUER: https://your-instance.clerk.accounts.dev
+    volumes:
+      - ./clerk-jwt-key.pem:/run/secrets/clerk-jwt-key:ro
+    # host.docker.internal is not resolvable on Linux without this.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
