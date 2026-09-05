@@ -122,6 +122,19 @@ describe("error contract", () => {
     expect(typeof unauthorized.body.error.message).toBe("string");
   });
 
+  // Old behaviour: the router treated HEAD as a read but CORS advertised only
+  // GET/POST/PATCH, so a browser's preflight for a HEAD carrying Authorization
+  // was refused by the browser even though the server would have served it.
+  it("advertises HEAD in Access-Control-Allow-Methods, matching what the router allows", async () => {
+    const res = await request(app)
+      .options("/api/fleet/v1/ships/TEST-1/cooldown")
+      .set("Origin", "http://localhost:3000")
+      .set("Access-Control-Request-Method", "HEAD")
+      .set("Access-Control-Request-Headers", "authorization,x-spacetraders-token");
+
+    expect(res.headers["access-control-allow-methods"].split(",")).toContain("HEAD");
+  });
+
   it("reports a validation failure in that same shape, with the offending fields", async () => {
     const res = await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("Authorization", bearer());
 

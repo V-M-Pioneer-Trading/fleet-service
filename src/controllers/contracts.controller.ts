@@ -60,11 +60,20 @@ async function recordDelivery(
       signal: AbortSignal.timeout(config.upstreamTimeoutMs),
     });
     if (!res.ok) {
+      // contractId is caller-supplied and reaches the log verbatim: a raw
+      // newline in it forges a second log line. JSON.stringify escapes it (and
+      // quotes it, so the boundary is visible). The body is capped for the
+      // same reason the client caps an upstream message — an agent-service
+      // HTML error page shouldn't become kilobytes of log per request.
       console.error(
-        `agent-service rejected delivery record for contract ${contractId}: ${res.status} ${await res.text()}`
+        `agent-service rejected delivery record for contract ${JSON.stringify(contractId)}: ` +
+          `${res.status} ${(await res.text()).slice(0, 500)}`
       );
     }
   } catch (err) {
-    console.error(`failed to reach agent-service to record delivery for contract ${contractId}:`, err);
+    console.error(
+      `failed to reach agent-service to record delivery for contract ${JSON.stringify(contractId)}:`,
+      err
+    );
   }
 }

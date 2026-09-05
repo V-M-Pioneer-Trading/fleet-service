@@ -79,6 +79,34 @@ describe("contracts controller: deliver", () => {
     expect(res.body).toEqual({ data: { contract: { id: "abc" } } });
   });
 
+  // Old behaviour: contractId went into the log line verbatim, so a caller who
+  // put a newline in it forged a second, fake log entry — and the whole
+  // agent-service response body was logged, so an HTML error page became
+  // kilobytes of log per failed delivery.
+  it("escapes the contract id and caps the body when logging an agent-service rejection", async () => {
+    const errors: string[] = [];
+    jest.spyOn(console, "error").mockImplementation((...args) => {
+      errors.push(args.join(" "));
+    });
+
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" })
+      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => "x".repeat(3000) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await request(app)
+      .post(`/api/fleet/v1/contracts/${encodeURIComponent("abc\nforged log line")}/deliver`)
+      .set("Authorization", bearer())
+      .set("X-SpaceTraders-Token", "test-token")
+      .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
+
+    const logged = errors.join("\n");
+    expect(logged).toContain(String.raw`"abc\nforged log line"`);
+    expect(logged).not.toContain("\nforged log line");
+    expect(logged.length).toBeLessThan(700);
+  });
+
   it("does not call agent-service if the SpaceTraders delivery itself fails", async () => {
     const fetchMock = jest.fn().mockResolvedValueOnce({
       ok: false,

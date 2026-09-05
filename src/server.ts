@@ -44,7 +44,9 @@ export function createApp(auth: AuthConfig) {
   app.use(
     cors({
       origin: config.corsAllowedOrigin,
-      methods: ["GET", "POST", "PATCH"],
+      // HEAD is here because the router below treats it as a read; without it
+      // a browser's preflight for a HEAD carrying Authorization is refused.
+      methods: ["GET", "HEAD", "POST", "PATCH"],
       allowedHeaders: ["Content-Type", "Authorization", "X-Priority", "X-SpaceTraders-Token"],
     })
   );
@@ -119,10 +121,20 @@ if (require.main === module) {
 
   // Containers are stopped with SIGTERM. Without this the process dies mid
   // request and the caller sees a dropped connection instead of a response.
-  for (const signal of ["SIGTERM", "SIGINT"] as const) {
-    process.on(signal, () => {
-      console.log(`received ${signal}, shutting down`);
-      server.close(() => process.exit(0));
-    });
-  }
+  const shutdown = (signal: string) => {
+    console.log(`received ${signal}, shutting down`);
+    server.close(() => process.exit(0));
+    // close() alone waits for every socket to go idle: keep-alive sockets hold
+    // it for keepAliveTimeout, and a request stuck on a slow upstream can hold
+    // it past the orchestrator's SIGKILL grace period, so the clean exit never
+    // gets to happen. Drop the idle ones immediately and bound the rest.
+    server.closeIdleConnections();
+    setTimeout(() => {
+      console.error("shutdown timed out with connections still open, exiting");
+      process.exit(1);
+    }, 10_000).unref();
+  };
+  // `once`, not `on`: a second signal should terminate immediately rather than
+  // restart the timeout above.
+  for (const signal of ["SIGTERM", "SIGINT"] as const) process.once(signal, () => shutdown(signal));
 }

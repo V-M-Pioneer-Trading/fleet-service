@@ -50,8 +50,13 @@ Each of these is a rule you can catch a violation of by reading a diff:
 1. **The Clerk session is never forwarded upstream.** `Authorization` inbound is
    Clerk's; `Authorization` outbound is built from `X-SpaceTraders-Token`. If a
    controller ever reads the inbound `Authorization`, that is a bug.
-2. **No token is ever stored, logged, or put in an error message.** Grep any new
-   `console.*` for token variables before merging.
+2. **Logs are safe to read.** No token is ever stored, logged, or put in an
+   error message — grep any new `console.*` for token variables before merging.
+   Caller-supplied values are `JSON.stringify`'d into log lines and upstream
+   bodies are capped at 500 chars, in the client's `upstreamMessage` and in
+   `recordDelivery`: a raw newline in a path param otherwise forges a log line,
+   and an upstream HTML error page otherwise becomes kilobytes of log per
+   request.
 3. **Every caller-supplied path segment is `encodeURIComponent`'d** before it
    reaches an outbound URL — in `shipPath`/`contractPath`, and by hand for the
    agent-service URL in `contracts.controller.ts`. Unencoded, a `..` in a ship
@@ -67,7 +72,9 @@ Each of these is a rule you can catch a violation of by reading a diff:
    a dev bypass, or a "skip auth in test" flag.
 8. **Reads are GET/HEAD, mutations are everything else.** The middleware keys on
    the method, not on a route list, so a new GET route is a read automatically.
-   A new route that mutates must not be a GET.
+   A new route that mutates must not be a GET. The `cors()` `methods` list must
+   stay in step with what the router accepts, or a browser refuses a preflight
+   for a method the server would have served.
 
 ## Critical sequences
 
@@ -91,6 +98,14 @@ that never happened is worse than losing one that did.
 
 **Startup** — `requireClerkJwtKey()` before `createApp`, so a missing key kills
 the process before a port is bound and a health check can pass.
+
+**Shutdown** — `server.close()`, then `closeIdleConnections()`, then an unref'd
+force-exit timer. All three are needed: `close()` alone waits on keep-alive
+sockets, and a request stuck on a slow upstream can hold it past the
+orchestrator's SIGKILL grace period, so the clean exit never happens. Signals
+are bound with `process.once` so a second SIGTERM terminates rather than
+restarting the timer. This block lives under `require.main === module` and is
+**not reachable from the test harness** — changes to it are verified by reading.
 
 ## Public surface
 
@@ -136,11 +151,13 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   mocks `fetch` without restoring it poisons every later test in the file** —
   this is the flake pattern to watch for. Keep the
   `afterEach(() => { global.fetch = originalFetch; })` in any new suite.
+- A test that asserts on log output must `jest.spyOn(console, "error")` and
+  restore it; `jest.restoreAllMocks()` in `afterEach` covers this.
 - `config.test.ts` is the faster harness level: config validation happens before
   any request exists, so it `jest.resetModules()` and re-`require`s the module
   instead of going through HTTP. Restore `process.env` in `afterAll` — Jest
   isolates module registries per file but not the process environment within one.
-- Suite is currently 5 files / 37 tests and has no known flakes; it was run 5×
+- Suite is currently 5 files / 39 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
 - No test reaches the network. If a new test would, mock `fetch` instead.
