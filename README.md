@@ -3,20 +3,21 @@
 **This service holds no credentials and no state.** It is a thin, authenticated
 seam between the browser (and the autopilot) and the SpaceTraders game API:
 it checks *who is asking* using a Clerk session, then forwards the ship action
-through `st-gateway` using a SpaceTraders token the **caller** supplied and
-this service never stores. Everything else follows from that.
+through `st-gateway`, which supplies the game credential itself. Everything
+else follows from that.
 
-Two credentials travel on every request, and they are not interchangeable:
+One credential travels on every request:
 
 | Header | What it is | Who checks it |
 |---|---|---|
-| `Authorization: Bearer <jwt>` | Clerk session — proves a human operator is signed in | Verified here, locally, against Clerk's public key |
-| `X-SpaceTraders-Token` | The game agent's own token | Never inspected here; forwarded to st-gateway as its `Authorization` |
+| `Authorization: Bearer <jwt>` | Clerk session — a human operator, or automation-service's machine identity | Verified here, locally, against Clerk's public key; then forwarded verbatim to st-gateway, which derives queue priority from it |
 
-That split is auth-design.md decision 18. Before it, the game token rode in
-`Authorization` and *anyone* holding one could drive the fleet. Now a stolen
-game token gets you nothing without a Clerk session, and a Clerk session gets
-you nothing without a game token.
+No SpaceTraders token passes through here. st-gateway holds the only copy and
+injects it on every upstream call (auth-design.md decision 5), so a stolen
+Clerk session is the only thing that could drive the fleet — and it is
+short-lived, revocable, and never a game credential. The `X-SpaceTraders-Token`
+header of decision 18 is gone; a stale caller still sending it is ignored, not
+rejected.
 
 Ship/cargo purchases and cargo sells deliberately live in `agent-service`, not
 here — those are the actions that move credits, and agent-service owns the
@@ -34,10 +35,10 @@ flowchart LR
   st["SpaceTraders API"]
   agent["agent-service<br/>contract history"]
 
-  browser -->|"X-Priority: interactive"| fleet
-  autopilot -->|"no X-Priority"| fleet
+  browser -->|"Clerk session (human)"| fleet
+  autopilot -->|"Clerk M2M token (machine)"| fleet
   clerk -.->|"CLERK_JWT_KEY"| fleet
-  fleet -->|"/proxy/*"| gateway
+  fleet -->|"/proxy/*, session forwarded<br/>→ interactive or background lane"| gateway
   gateway --> st
   fleet -->|"record delivery, best effort"| agent
 ```
@@ -63,7 +64,6 @@ flowchart TD
   scope -->|"scope missing"| e403["403"]
   session --> route["tsoa route + body validation"]
   scope --> route
-  route -->|"missing X-SpaceTraders-Token"| e400
   route --> upstream["st-gateway /proxy"]
   upstream -->|"2xx JSON"| ok["200, body passed through"]
   upstream -->|"game error"| passthru["upstream status,<br/>upstream message"]
@@ -71,10 +71,10 @@ flowchart TD
   upstream -->|"unreachable or timeout"| e504["504"]
 ```
 
-Reads need only a signed-in operator, not a scope: this service holds no
-SpaceTraders credential of its own, so a caller without a game token has
-nothing to read regardless of what scopes they carry. `HEAD` counts as a read
-because Express answers it from the `GET` handler.
+Reads need only a signed-in operator, not a scope: cooldown and cargo are facts
+about the one account the fleet plays, so they are not anonymous (decision 3),
+but they move nothing. `HEAD` counts as a read because Express answers it from
+the `GET` handler.
 
 ## Setup
 
@@ -109,9 +109,9 @@ and `docker compose up --build`.
 
 ## API
 
-All routes live under `/api/fleet/v1` and need both headers from the table at
-the top. `X-Priority: interactive` is optional and forwarded to st-gateway's
-queue; anything else, including a missing header, is sent as `background`.
+All routes live under `/api/fleet/v1` and need the `Authorization` header from
+the table at the top. Which st-gateway queue the call lands in is derived from
+that session by the gateway itself; nothing a caller declares can change it.
 
 | Method | Path | Auth | Body |
 |---|---|---|---|
@@ -205,9 +205,9 @@ Deliberate, and worth knowing before you file a bug:
   just a `console.error`. Contract history in agent-service can silently drift
   from what actually happened in the game.
 - **The delivery record is not authenticated as the operator.** fleet-service
-  sends agent-service the game token but not the Clerk session. Whether
-  agent-service is happy with that is a property of agent-service and is not
-  verified from this repo.
+  sends agent-service no credential at all on that call; agent-service's
+  deliveries route is deliberately open for it. Whether that stays acceptable
+  is a property of agent-service and is not verified from this repo.
 - **No retries anywhere.** A single failed upstream call fails the request.
   Rate limiting and back-off are st-gateway's job by design; transient network
   faults are the caller's problem.

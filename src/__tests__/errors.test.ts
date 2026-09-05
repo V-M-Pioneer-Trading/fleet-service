@@ -32,7 +32,6 @@ describe("error contract", () => {
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/navigate")
       .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "t")
       .set("Content-Type", "application/json")
       .send("{not json");
 
@@ -58,8 +57,7 @@ describe("error contract", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "t");
+      .set("Authorization", bearer());
 
     expect(res.status).toBe(502);
     expect(res.body.error.message).toMatch(/non-JSON/);
@@ -73,8 +71,7 @@ describe("error contract", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "t");
+      .set("Authorization", bearer());
 
     expect(res.status).toBe(504);
     expect(res.body.error.message).toMatch(/st-gateway did not answer/);
@@ -86,8 +83,7 @@ describe("error contract", () => {
 
     await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "t");
+      .set("Authorization", bearer());
 
     const [, options] = fetchMock.mock.calls[0];
     expect(options.signal).toBeInstanceOf(AbortSignal);
@@ -109,15 +105,13 @@ describe("error contract", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "t");
+      .set("Authorization", bearer());
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: { message: "Ship is not currently docked." } });
 
     const unauthorized = await request(app)
-      .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("X-SpaceTraders-Token", "t");
+      .post("/api/fleet/v1/ships/TEST-1/orbit");
     expect(Object.keys(unauthorized.body)).toEqual(Object.keys(res.body));
     expect(typeof unauthorized.body.error.message).toBe("string");
   });
@@ -130,16 +124,19 @@ describe("error contract", () => {
       .options("/api/fleet/v1/ships/TEST-1/cooldown")
       .set("Origin", "http://localhost:3000")
       .set("Access-Control-Request-Method", "HEAD")
-      .set("Access-Control-Request-Headers", "authorization,x-spacetraders-token");
+      .set("Access-Control-Request-Headers", "authorization");
 
     expect(res.headers["access-control-allow-methods"].split(",")).toContain("HEAD");
   });
 
   it("reports a validation failure in that same shape, with the offending fields", async () => {
-    const res = await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("Authorization", bearer());
+    const res = await request(app)
+      .post("/api/fleet/v1/ships/TEST-1/navigate")
+      .set("Authorization", bearer())
+      .send({});
 
     expect(res.status).toBe(400);
     expect(res.body.error.message).toBe("validation failed");
-    expect(res.body.error.fields).toHaveProperty("X-SpaceTraders-Token");
+    expect(res.body.error.fields).toHaveProperty(["body.waypointSymbol"]);
   });
 });

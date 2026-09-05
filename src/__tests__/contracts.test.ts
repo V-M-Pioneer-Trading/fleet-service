@@ -30,7 +30,6 @@ describe("contracts controller: deliver", () => {
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
       .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     expect(res.status).toBe(200);
@@ -52,7 +51,6 @@ describe("contracts controller: deliver", () => {
     await request(app)
       .post(`/api/fleet/v1/contracts/${encodeURIComponent("../../agent")}/deliver`)
       .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe("/proxy/my/contracts/..%2F..%2Fagent/deliver");
@@ -72,7 +70,6 @@ describe("contracts controller: deliver", () => {
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
       .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     expect(res.status).toBe(200);
@@ -98,7 +95,6 @@ describe("contracts controller: deliver", () => {
     await request(app)
       .post(`/api/fleet/v1/contracts/${encodeURIComponent("abc\nforged log line")}/deliver`)
       .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     const logged = errors.join("\n");
@@ -118,7 +114,6 @@ describe("contracts controller: deliver", () => {
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
       .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
     expect(res.status).toBe(400);
