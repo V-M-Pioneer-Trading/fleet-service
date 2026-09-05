@@ -16,29 +16,23 @@ export class ContractsController extends Controller {
   @Post("{contractId}/deliver")
   public async deliver(
     @Path() contractId: string,
-    @Header("X-SpaceTraders-Token") spaceTradersToken: string,
+    @Header("Authorization") authorization: string,
     @Body() body: DeliverContractRequestBody,
-    @Header("X-Priority") priority?: string
   ): Promise<Record<string, unknown>> {
     const result = await spaceTradersRequest<Record<string, unknown>>(
       "POST",
       contractPath(contractId, "deliver"),
-      spaceTradersToken,
-      body,
-      priority
+      authorization,
+      body
     );
 
-    await recordDelivery(contractId, spaceTradersToken, body);
+    await recordDelivery(contractId, body);
 
     return result;
   }
 }
 
-async function recordDelivery(
-  contractId: string,
-  spaceTradersToken: string,
-  body: DeliverContractRequestBody
-): Promise<void> {
+async function recordDelivery(contractId: string, body: DeliverContractRequestBody): Promise<void> {
   // Encoded for the same reason as the SpaceTraders paths: contractId is
   // caller-supplied and would otherwise be able to steer this at another
   // agent-service route.
@@ -46,10 +40,7 @@ async function recordDelivery(
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-SpaceTraders-Token": spaceTradersToken,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         shipSymbol: body.shipSymbol,
         tradeSymbol: body.tradeSymbol,

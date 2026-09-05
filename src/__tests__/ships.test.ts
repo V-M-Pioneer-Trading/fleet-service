@@ -24,8 +24,7 @@ describe("ships controller", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token");
+      .set("Authorization", bearer());
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ data: { nav: { status: "IN_ORBIT" } } });
@@ -35,16 +34,35 @@ describe("ships controller", () => {
     );
   });
 
-  it("forwards X-SpaceTraders-Token, not the Clerk session, as the SpaceTraders credential", async () => {
+  // auth-design.md decisions 2 and 5: no game credential passes through this
+  // service (st-gateway injects it), and the caller's own Clerk session is
+  // forwarded verbatim so st-gateway can derive queue priority from a verified
+  // identity — a human session earns the interactive lane there.
+  it("forwards the caller's Clerk session, verbatim, as the upstream Authorization", async () => {
     mockOkFetch({ data: { nav: { status: "IN_ORBIT" } } });
+    const session = bearer();
 
-    await request(app)
-      .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "the-game-token");
+    await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("Authorization", session);
 
     const [, options] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(options.headers.Authorization).toBe("Bearer the-game-token");
+    expect(options.headers.Authorization).toBe(session);
+    expect(options.headers).not.toHaveProperty("X-Priority");
+    expect(options.headers).not.toHaveProperty("X-SpaceTraders-Token");
+  });
+
+  // Stage 5 of increment 3 removed the game-token header. A stale caller still
+  // sending it is served normally — st-gateway overwrites the credential
+  // anyway, so rejecting would only create a deploy-ordering trap.
+  it("ignores a stray X-SpaceTraders-Token header rather than rejecting it", async () => {
+    mockOkFetch({ data: { nav: { status: "IN_ORBIT" } } });
+
+    const res = await request(app)
+      .post("/api/fleet/v1/ships/TEST-1/orbit")
+      .set("Authorization", bearer());
+
+    expect(res.status).toBe(200);
+    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(options.headers).not.toHaveProperty("X-SpaceTraders-Token");
   });
 
   it("routes the call through st-gateway's /proxy path, never hitting SpaceTraders directly", async () => {
@@ -52,49 +70,11 @@ describe("ships controller", () => {
 
     await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token");
+      .set("Authorization", bearer());
 
     const [url] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toMatch(/^http:\/\/localhost:3002\/proxy\/my\/ships\/TEST-1\/orbit$/);
     expect(url).not.toContain("api.spacetraders.io");
-  });
-
-  // meta#37: fleet-service used to hardcode X-Priority: interactive on every
-  // outbound call, so automation-service's background autopilot traffic
-  // jumped st-gateway's queue meant to keep the browser UI responsive. It now
-  // forwards whatever the caller (command-interface vs automation-service)
-  // itself declared.
-  it("forwards the caller's X-Priority: interactive through to st-gateway", async () => {
-    mockOkFetch({ data: { nav: { status: "IN_ORBIT" } } });
-
-    await request(app)
-      .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
-      .set("X-Priority", "interactive");
-
-    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(options.headers["X-Priority"]).toBe("interactive");
-  });
-
-  it("degrades a missing or non-interactive X-Priority to background, never defaulting to interactive", async () => {
-    mockOkFetch({ data: { nav: { status: "IN_ORBIT" } } });
-
-    await request(app)
-      .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token");
-    let [, options] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(options.headers["X-Priority"]).toBe("background"); // no header at all — automation-service's case
-
-    await request(app)
-      .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
-      .set("X-Priority", "bogus");
-    [, options] = (global.fetch as jest.Mock).mock.calls[1];
-    expect(options.headers["X-Priority"]).toBe("background"); // anything but exactly "interactive"
   });
 
   // A ship symbol arrives in the URL path and used to be interpolated into the
@@ -107,8 +87,7 @@ describe("ships controller", () => {
 
     await request(app)
       .post(`/api/fleet/v1/ships/${encodeURIComponent("../../agent")}/orbit`)
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token");
+      .set("Authorization", bearer());
 
     const [url] = (global.fetch as jest.Mock).mock.calls[0];
     expect(new URL(url).pathname).toBe("/proxy/my/ships/..%2F..%2Fagent/orbit");
@@ -123,8 +102,7 @@ describe("ships controller", () => {
 
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
-      .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "bad-token");
+      .set("Authorization", bearer());
 
     expect(res.status).toBe(401);
   });
@@ -135,7 +113,6 @@ describe("ships controller", () => {
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/navigate")
       .set("Authorization", bearer())
-      .set("X-SpaceTraders-Token", "test-token")
       .send({ waypointSymbol: "X1-FQ86-B29" });
 
     expect(res.status).toBe(200);
@@ -146,7 +123,7 @@ describe("ships controller", () => {
   describe("Clerk verification", () => {
     it("rejects a mutating route with no Authorization header at all", async () => {
       global.fetch = jest.fn();
-      const res = await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("X-SpaceTraders-Token", "x");
+      const res = await request(app).post("/api/fleet/v1/ships/TEST-1/orbit");
 
       expect(res.status).toBe(401);
       expect(global.fetch).not.toHaveBeenCalled();
@@ -156,8 +133,7 @@ describe("ships controller", () => {
       global.fetch = jest.fn();
       const res = await request(app)
         .post("/api/fleet/v1/ships/TEST-1/orbit")
-        .set("Authorization", bearerWithoutScope())
-        .set("X-SpaceTraders-Token", "x");
+        .set("Authorization", bearerWithoutScope());
 
       expect(res.status).toBe(403);
       expect(global.fetch).not.toHaveBeenCalled();
@@ -166,8 +142,7 @@ describe("ships controller", () => {
     it("rejects an expired session", async () => {
       const res = await request(app)
         .post("/api/fleet/v1/ships/TEST-1/orbit")
-        .set("Authorization", expiredBearer())
-        .set("X-SpaceTraders-Token", "x");
+        .set("Authorization", expiredBearer());
 
       expect(res.status).toBe(401);
     });
@@ -175,8 +150,7 @@ describe("ships controller", () => {
     it("rejects a token signed by an untrusted key", async () => {
       const res = await request(app)
         .post("/api/fleet/v1/ships/TEST-1/orbit")
-        .set("Authorization", foreignBearer())
-        .set("X-SpaceTraders-Token", "x");
+        .set("Authorization", foreignBearer());
 
       expect(res.status).toBe(401);
     });
@@ -184,8 +158,7 @@ describe("ships controller", () => {
     it("rejects a request with the game token but no Clerk session in Authorization", async () => {
       const res = await request(app)
         .post("/api/fleet/v1/ships/TEST-1/orbit")
-        .set("Authorization", "Bearer some-spacetraders-token")
-        .set("X-SpaceTraders-Token", "x");
+        .set("Authorization", "Bearer some-spacetraders-token");
 
       // Well-formed but not a Clerk-signed JWT — jose rejects it during
       // verification the same as any other invalid signature.
@@ -197,8 +170,7 @@ describe("ships controller", () => {
 
       const res = await request(app)
         .get("/api/fleet/v1/ships/TEST-1/cooldown")
-        .set("Authorization", bearerWithoutScope())
-        .set("X-SpaceTraders-Token", "x");
+        .set("Authorization", bearerWithoutScope());
 
       expect(res.status).toBe(200);
     });
@@ -212,15 +184,14 @@ describe("ships controller", () => {
 
       const res = await request(app)
         .head("/api/fleet/v1/ships/TEST-1/cooldown")
-        .set("Authorization", bearerWithoutScope())
-        .set("X-SpaceTraders-Token", "x");
+        .set("Authorization", bearerWithoutScope());
 
       expect(res.status).toBe(200);
     });
 
     it("rejects cooldown, a read, with no Authorization header", async () => {
       global.fetch = jest.fn();
-      const res = await request(app).get("/api/fleet/v1/ships/TEST-1/cooldown").set("X-SpaceTraders-Token", "x");
+      const res = await request(app).get("/api/fleet/v1/ships/TEST-1/cooldown");
 
       expect(res.status).toBe(401);
       expect(global.fetch).not.toHaveBeenCalled();

@@ -47,7 +47,7 @@ export function createApp(auth: AuthConfig) {
       // HEAD is here because the router below treats it as a read; without it
       // a browser's preflight for a HEAD carrying Authorization is refused.
       methods: ["GET", "HEAD", "POST", "PATCH"],
-      allowedHeaders: ["Content-Type", "Authorization", "X-Priority", "X-SpaceTraders-Token"],
+      allowedHeaders: ["Content-Type", "Authorization"],
     })
   );
 

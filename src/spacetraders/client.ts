@@ -38,17 +38,12 @@ const upstreamMessage = (text: string): string => {
 /**
  * Sends one request to SpaceTraders through st-gateway.
  *
- * `spaceTradersToken` is the game credential from the caller's
- * `X-SpaceTraders-Token` header — never stored, and turned into the upstream
- * `Authorization` header here so no call site can get that wire format wrong.
- * The caller's Clerk session, which server.ts has already verified, is a
- * separate credential and is not forwarded.
- *
- * `priority` forwards the caller's own X-Priority declaration through to
- * st-gateway's priority queue (meta#37) — command-interface (browser) sends
- * "interactive", automation-service (autopilot) sends nothing, and anything
- * that isn't exactly "interactive" degrades to "background" so a missing or
- * malformed header never accidentally jumps the queue.
+ * No game credential travels: st-gateway injects the agent token itself
+ * (auth-design.md decision 5). `authorization` is the caller's own Clerk
+ * session, already verified by server.ts, forwarded verbatim so st-gateway can
+ * derive queue priority from a verified identity (decision 2): a human session
+ * earns the interactive lane, a machine token (automation-service's M2M) or
+ * nothing queues as background. Nothing here is a caller's to spoof.
  *
  * Every non-2xx, unreadable, or timed-out response becomes an UpstreamError so
  * server.ts's handler can map it to a status; nothing here fails silently.
@@ -56,9 +51,8 @@ const upstreamMessage = (text: string): string => {
 export async function spaceTradersRequest<T>(
   method: string,
   path: string,
-  spaceTradersToken: string,
-  body?: unknown,
-  priority?: string
+  authorization: string | undefined,
+  body?: unknown
 ): Promise<T> {
   let res: Response;
   let text: string;
@@ -66,8 +60,7 @@ export async function spaceTradersRequest<T>(
     res = await fetch(`${config.gatewayProxyUrl}/proxy${path}`, {
       method,
       headers: {
-        Authorization: `Bearer ${spaceTradersToken}`,
-        "X-Priority": priority === "interactive" ? "interactive" : "background",
+        ...(authorization !== undefined ? { Authorization: authorization } : {}),
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,

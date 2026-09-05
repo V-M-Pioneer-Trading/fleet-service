@@ -37,8 +37,8 @@ it, never import from it outside `server.ts`.
 - Controllers never import `server.ts` — that is the cycle tsoa's codegen would
   otherwise close (`server` → `generated/routes` → controllers).
 - Controllers never call `fetch` for SpaceTraders. Every game call goes through
-  `spaceTradersRequest`; that is the only place path encoding, the `Bearer`
-  header, priority and the timeout are applied.
+  `spaceTradersRequest`; that is the only place path encoding, the forwarded
+  session and the timeout are applied.
 - `auth.ts` imports no config. Its trust anchor is an argument, so a test can
   supply a different key without touching a different code path.
 - `testSupport/` is imported only by tests.
@@ -47,9 +47,10 @@ it, never import from it outside `server.ts`.
 
 Each of these is a rule you can catch a violation of by reading a diff:
 
-1. **The Clerk session is never forwarded upstream.** `Authorization` inbound is
-   Clerk's; `Authorization` outbound is built from `X-SpaceTraders-Token`. If a
-   controller ever reads the inbound `Authorization`, that is a bug.
+1. **No SpaceTraders credential exists in this service.** The inbound `Authorization`
+   (a verified Clerk session) is the only header forwarded upstream, verbatim, so
+   st-gateway can derive queue priority from it (auth-design.md decision 2). A
+   controller building any other `Authorization`, or any `X-Priority`, is a bug.
 2. **Logs are safe to read.** No token is ever stored, logged, or put in an
    error message — grep any new `console.*` for token variables before merging.
    Caller-supplied values are `JSON.stringify`'d into log lines and upstream
@@ -115,8 +116,7 @@ Things outside this repo depend on. Changing any of them is a coordinated change
 |---|---|---|
 | `/api/fleet/v1/*` route paths | command-interface, automation-service | Also the CloudFront path pattern in production |
 | `/health`, `/api/fleet/health` | compose healthcheck, ALB/CloudFront | Both must stay; production only routes the prefixed one |
-| `X-SpaceTraders-Token` header name | command-interface, automation-service, agent-service | The decision-18 split; also what this service sends agent-service |
-| `X-Priority: interactive` | command-interface | st-gateway reads the forwarded value |
+| `Authorization` forwarded verbatim to st-gateway | st-gateway's priority derivation | A human session lands in the interactive lane; automation-service's M2M token in background |
 | `fleet:control` scope string | Clerk JWT templates | Defined once in `src/auth.ts` as `SCOPE_FLEET_CONTROL` |
 | `{ error: { message } }` body | command-interface error rendering | Uniform since the error-contract change; 400s add `error.fields` |
 | `POST {AGENT_SERVICE_URL}/contracts/{id}/deliveries` with `{ shipSymbol, tradeSymbol, units }` | agent-service | Outbound contract this service must keep sending |
