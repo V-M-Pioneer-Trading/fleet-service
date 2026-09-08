@@ -89,7 +89,7 @@ describe("contracts controller: deliver", () => {
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" })
-      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => "x".repeat(3000) });
+      .mockResolvedValueOnce({ ok: false, status: 500, headers: new Headers(), text: async () => "x".repeat(3000) });
     global.fetch = fetchMock as unknown as typeof fetch;
 
     await request(app)
@@ -107,6 +107,7 @@ describe("contracts controller: deliver", () => {
     const fetchMock = jest.fn().mockResolvedValueOnce({
       ok: false,
       status: 400,
+      headers: new Headers(),
       text: async () => JSON.stringify({ error: { message: "no cargo to deliver" } }),
     });
     global.fetch = fetchMock as unknown as typeof fetch;

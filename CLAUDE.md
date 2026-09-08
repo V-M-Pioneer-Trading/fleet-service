@@ -26,8 +26,8 @@ it, never import from it outside `server.ts`.
 | `src/server.ts` | App construction, middleware order, the auth read/mutate split, the error contract, process bootstrap and shutdown | `config`, `auth`, `generated/routes`, `spacetraders/errors` |
 | `src/config.ts` | Env parsing and validation; `requireClerkJwtKey()` | `fs` only |
 | `src/auth.ts` | Clerk JWT verification, `requireScope` / `requireSession` | `jose` only |
-| `src/spacetraders/client.ts` | The single outbound path to st-gateway: path encoding, `Bearer` construction, priority, timeout, error mapping | `config`, `./errors` |
-| `src/spacetraders/errors.ts` | `UpstreamError` | nothing |
+| `src/spacetraders/client.ts` | The single outbound path to st-gateway: path encoding, `Bearer` construction, priority, timeout, and the relay of the gateway's status, message and pacing headers | `config`, `./errors` |
+| `src/spacetraders/errors.ts` | `UpstreamError` and `FORWARDED_HEADERS` — the pacing headers relayed from st-gateway, in the same order and casing it sends them | nothing |
 | `src/spacetraders/types.ts` | Request-body shapes tsoa validates against | nothing |
 | `src/controllers/*.controller.ts` | Route declarations. One `spaceTradersRequest` call each | `spacetraders/client`, `spacetraders/types`, (contracts only) `config` |
 | `src/testSupport/*` | Ephemeral keypair, signed test tokens, `createTestApp` | `auth`, `server` |
@@ -133,7 +133,10 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   becomes `background` — a malformed header must never jump the queue ahead of
   the browser.
 - **SpaceTraders errors are `{ error: { message, code } }`.** The client lifts
-  `message` out; `code` is currently dropped.
+  `message` out; `code` is dropped, deliberately and across all three gateway
+  clients — it cannot be relayed as a field through agent-service's plain text
+  or navigation-service's `ProblemDetail`, and the gateway's own errors carry
+  none. See meta's `docs/design/upstream-errors.md`.
 - **jose is pinned to v5, not v6.** v6 is ESM-only and ts-jest here runs
   CommonJS. Upgrading means moving the whole test setup to ESM.
 - **`extract` and `extract/survey` are separate upstream endpoints.** The first
@@ -157,7 +160,18 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   any request exists, so it `jest.resetModules()` and re-`require`s the module
   instead of going through HTTP. Restore `process.env` in `afterAll` — Jest
   isolates module registries per file but not the process environment within one.
-- Suite is currently 5 files / 39 tests and has no known flakes; it was run 5×
+- **A `fetch` mock must look like a `Response`.** Three suites stubbed
+  `{ ok, status, text }` and nothing else; the client now reads `res.headers`
+  too, so each of them threw a `TypeError` that surfaced as a 500 and looked
+  like a routing bug. Include `headers: new Headers()`.
+- `__tests__/gatewayErrorConformance.test.ts` drives the shared upstream-error
+  contract, one case per condition, from `testSupport/gateway-errors.json` — a
+  **verbatim copy** of `meta/fixtures/gateway-errors.json`. Change meta first,
+  then re-copy, or the copy is just a local opinion. Unknown assertion keys fail
+  the case rather than being skipped, so a copy that falls behind says so
+  instead of quietly checking less. `resolveJsonModule` puts the fixture in
+  `dist/` beside the compiled tests; nothing at runtime imports it.
+- Suite is currently 6 files / 53 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
 - No test reaches the network. If a new test would, mock `fetch` instead.

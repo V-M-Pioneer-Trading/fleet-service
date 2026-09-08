@@ -6,7 +6,7 @@ import { config, requireClerkJwtKey } from "./config";
 import { createVerifier, SCOPE_FLEET_CONTROL, type AuthConfig } from "./auth";
 import { RegisterRoutes } from "./generated/routes";
 import swaggerSpec from "./generated/swagger.json";
-import { UpstreamError } from "./spacetraders/errors";
+import { FORWARDED_HEADERS, UpstreamError } from "./spacetraders/errors";
 
 /**
  * Every error this service returns has the same shape as SpaceTraders' own —
@@ -48,6 +48,11 @@ export function createApp(auth: AuthConfig) {
       // a browser's preflight for a HEAD carrying Authorization is refused.
       methods: ["GET", "HEAD", "POST", "PATCH"],
       allowedHeaders: ["Content-Type", "Authorization"],
+      // Pacing headers relayed from st-gateway. None of these is CORS-safelisted,
+      // so without this a browser sees the 429 and not the instructions that came
+      // with it — the relay would reach the network and stop at the last hop that
+      // matters.
+      exposedHeaders: [...FORWARDED_HEADERS],
     })
   );
 
@@ -98,6 +103,14 @@ export function createApp(auth: AuthConfig) {
       // An upstream 5xx is an operational event on this side of the call, not
       // a caller mistake — log it rather than only handing it to the client.
       if (status >= 500) console.error(`upstream failure (${status}): ${err.message}`);
+      // Guarded because this is the last handler in the chain: anything thrown
+      // here escapes to Express's finalhandler, which answers with an HTML 500
+      // and breaks the one-error-shape invariant for a header nobody needs.
+      try {
+        for (const [name, value] of Object.entries(err.headers)) res.set(name, value);
+      } catch (headerErr) {
+        console.error(`could not relay upstream pacing headers: ${String(headerErr)}`);
+      }
       res.status(status).json(errorBody(err.message));
       return;
     }

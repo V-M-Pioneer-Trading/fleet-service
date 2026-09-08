@@ -1,5 +1,5 @@
 import { config } from "../config";
-import { UpstreamError } from "./errors";
+import { FORWARDED_HEADERS, UpstreamError } from "./errors";
 
 /**
  * Builds a SpaceTraders path, URL-encoding every caller-supplied segment.
@@ -33,6 +33,19 @@ const upstreamMessage = (text: string): string => {
   // Capped: an upstream that answers with a full HTML error page shouldn't
   // have all of it echoed back through this service.
   return text.length > 0 ? text.slice(0, 500) : "upstream request failed";
+};
+
+const pacingHeaders = (headers: Headers): Record<string, string> => {
+  const pacing: Record<string, string> = {};
+  for (const name of FORWARDED_HEADERS) {
+    const value = headers.get(name);
+    // `Headers.get` joins duplicates with a comma. st-gateway sends each of
+    // these once, so a doubled one came from an intermediary — and relaying
+    // "3, 9" as a Retry-After parses to NaN at the other end, which is worse
+    // than relaying the first of the two.
+    if (value !== null) pacing[name] = value.split(",")[0].trim();
+  }
+  return pacing;
 };
 
 /**
@@ -77,7 +90,7 @@ export async function spaceTradersRequest<T>(
   }
 
   if (!res.ok) {
-    throw new UpstreamError(res.status, upstreamMessage(text));
+    throw new UpstreamError(res.status, upstreamMessage(text), pacingHeaders(res.headers));
   }
 
   if (text.length === 0) return undefined as T;
