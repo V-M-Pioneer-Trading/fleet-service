@@ -39,7 +39,11 @@ const pacingHeaders = (headers: Headers): Record<string, string> => {
   const pacing: Record<string, string> = {};
   for (const name of FORWARDED_HEADERS) {
     const value = headers.get(name);
-    if (value !== null) pacing[name] = value;
+    // `Headers.get` joins duplicates with a comma. st-gateway sends each of
+    // these once, so a doubled one came from an intermediary — and relaying
+    // "3, 9" as a Retry-After parses to NaN at the other end, which is worse
+    // than relaying the first of the two.
+    if (value !== null) pacing[name] = value.split(",")[0].trim();
   }
   return pacing;
 };

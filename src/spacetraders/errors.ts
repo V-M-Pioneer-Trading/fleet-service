@@ -15,6 +15,12 @@ export class UpstreamError extends Error {
   /**
    * Pacing signals the gateway forwards on a passed-through 429. Relaying the
    * status without them keeps the news and drops the instructions.
+   *
+   * Only on a failure: they ride on `UpstreamError`, so a successful call drops
+   * them. That is the reactive half of pacing, not the proactive half — a caller
+   * learns the budget is spent rather than that it is nearly spent. Carrying
+   * them out of a 2xx means threading a header through every controller return,
+   * which is a bigger change than this one and nobody is reading them yet.
    */
   headers: Record<string, string>;
 
@@ -31,4 +37,9 @@ export class UpstreamError extends Error {
  * forwards exactly these four (`st-gateway/src/server.ts`), and a caller needs
  * them to back off rather than hammer the shared budget.
  */
-export const FORWARDED_HEADERS = ["retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"];
+export const FORWARDED_HEADERS: readonly string[] = [
+  "retry-after",
+  "x-ratelimit-limit",
+  "x-ratelimit-remaining",
+  "x-ratelimit-reset",
+];
