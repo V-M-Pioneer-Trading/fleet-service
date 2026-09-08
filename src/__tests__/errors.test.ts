@@ -99,6 +99,7 @@ describe("error contract", () => {
       jest.fn().mockResolvedValue({
         ok: false,
         status: 400,
+        headers: new Headers(),
         text: async () => JSON.stringify({ error: { message: "Ship is not currently docked.", code: 4214 } }),
       })
     );

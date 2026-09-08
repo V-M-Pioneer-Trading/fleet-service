@@ -177,11 +177,19 @@ Validation failures add `error.fields`.
 | `400` | Malformed JSON body, missing/invalid header or body field |
 | `401` | No Clerk session, or one that is expired, forged, or from the wrong issuer |
 | `403` | Valid session without `fleet:control` on a mutating route |
-| `4xx`/`5xx` from the game | Passed through with SpaceTraders' own status and message |
+| `4xx`/`5xx` from st-gateway | Relayed with its own status and message, and with its `Retry-After` / `X-RateLimit-*` headers. That covers the game's refusals, `429` when the shared rate budget is spent, and `503 SpaceTraders credential not configured` when auth-service holds no agent token |
 | `404` | Unknown route |
 | `502` | st-gateway answered 2xx with something that is not JSON |
 | `504` | st-gateway unreachable, or slower than `UPSTREAM_TIMEOUT_MS` |
 | `500` | A genuine fault here — logged with a stack; nothing else returns it |
+
+The relayed row is st-gateway's verdict, not this service's. It is the only party
+that talked to SpaceTraders and the only one that can see whether a credential
+exists, so re-deciding its answer here would be a guess overwriting a fact. The
+rule and its conformance cases are
+[specified in meta](https://github.com/V-M-Pioneer-Trading/meta/blob/main/docs/design/upstream-errors.md);
+this service was already closest to it, and what it was still dropping were the
+pacing headers the gateway forwards so a caller can back off.
 
 Verification failures never say *why* (expired vs. bad signature vs. wrong
 issuer): the distinction is a probing oracle and the remedy is the same.

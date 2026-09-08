@@ -97,6 +97,7 @@ describe("ships controller", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
       status: 401,
+      headers: new Headers(),
       text: async () => JSON.stringify({ error: { message: "Token is missing or empty." } }),
     }) as unknown as typeof fetch;
 
