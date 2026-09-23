@@ -16,7 +16,7 @@ export class ContractsController extends Controller {
   @Post("{contractId}/deliver")
   public async deliver(
     @Path() contractId: string,
-    @Header("Authorization") authorization: string,
+    @Header("Authorization") authorization: string | undefined,
     @Body() body: DeliverContractRequestBody,
   ): Promise<Record<string, unknown>> {
     const result = await spaceTradersRequest<Record<string, unknown>>(
@@ -42,7 +42,7 @@ export class ContractsController extends Controller {
 async function recordDelivery(
   contractId: string,
   body: DeliverContractRequestBody,
-  authorization: string
+  authorization: string | undefined
 ): Promise<void> {
   // Encoded for the same reason as the SpaceTraders paths: contractId is
   // caller-supplied and would otherwise be able to steer this at another
@@ -51,7 +51,10 @@ async function recordDelivery(
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authorization },
+      headers: {
+        "Content-Type": "application/json",
+        ...(authorization !== undefined ? { Authorization: authorization } : {}),
+      },
       body: JSON.stringify({
         shipSymbol: body.shipSymbol,
         tradeSymbol: body.tradeSymbol,

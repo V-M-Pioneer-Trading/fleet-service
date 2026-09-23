@@ -13,7 +13,7 @@ import { createExpressAuth, MESSAGES } from "@v-m-pioneer-trading/introspection-
 import request from "supertest";
 import { config } from "../config";
 import { createApp } from "../server";
-import { CONTROL_TOKEN, INACTIVE_TOKEN, SESSION_TOKEN } from "../testSupport/authTokens";
+import { CONTROL_TOKEN, INACTIVE_TOKEN, SESSION_TOKEN, WRONG_SCOPE_TOKEN } from "../testSupport/authTokens";
 import { startStub, startStubCenter, STUB_SECRET, type Stub } from "../testSupport/stubServers";
 
 describe("introspection wiring", () => {
@@ -105,6 +105,28 @@ describe("introspection wiring", () => {
     expect(gateway.calls).toHaveLength(0);
   });
 
+  it("refuses a mutation to a session holding only a neighbouring scope", async () => {
+    const res = await request(app()).post("/api/fleet/v1/ships/S-1/orbit").set("Authorization", `Bearer ${WRONG_SCOPE_TOKEN}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: { message: "this action requires a scope this session does not carry" } });
+    expect(gateway.calls).toHaveLength(0);
+  });
+
+  it("serves GET-only swagger: any other method falls through to the JSON 404", async () => {
+    const res = await request(app()).post("/api/fleet/swagger/");
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: { message: "not found" } });
+  });
+
+  it("still serves swagger-ui static assets under the GET-only mount", async () => {
+    const res = await request(app()).get("/api/fleet/swagger/swagger-ui.css");
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/css");
+  });
+
   it.each(["post:/api/fleet/v1/ships/S-1/orbit", "patch:/api/fleet/v1/ships/S-1/nav"])(
     "lets a session holding fleet:control through %s, asking the center exactly once",
     async (spec) => {
@@ -165,6 +187,11 @@ describe("introspection wiring", () => {
       const res = await request(app()).head("/api/fleet/v1/ships/S-1/cargo").set("Authorization", `Bearer ${INACTIVE_TOKEN}`);
 
       expect(res.status).toBe(401);
+      expect(center.calls).toHaveLength(1);
+      // A HEAD answer carries no body on the wire, so the message is pinned by
+      // the Content-Length the handler computed for the JSON it would send.
+      const expected = JSON.stringify({ error: { message: "invalid or expired session" } });
+      expect(res.headers["content-length"]).toBe(String(Buffer.byteLength(expected)));
     });
   });
 

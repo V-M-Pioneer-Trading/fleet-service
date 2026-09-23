@@ -87,7 +87,15 @@ export function createApp(auth: ExpressAuth) {
   RegisterRoutes(generatedRouter);
   app.use("/api/fleet/v1", auth.guard(fleetRequirement), generatedRouter);
 
-  app.use("/api/fleet/swagger", auth.allowPublic(), swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  // Declared on GET (Express sends HEAD there too) so every other method falls
+  // through to the JSON 404 below; declared with app.use, allowPublic() met a
+  // POST and answered 500 "this route declares no required scope". The UI sits
+  // in a router mounted inside it because swaggerUi.serve is serve-static,
+  // which needs the prefix stripped to find its assets, and a route handler
+  // does not strip one.
+  const swaggerUiRouter = express.Router();
+  swaggerUiRouter.use("/api/fleet/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get(["/api/fleet/swagger", "/api/fleet/swagger/*"], auth.allowPublic(), swaggerUiRouter);
 
   // Express' default 404 is an HTML page; every other answer from this service
   // is JSON, so a mistyped path shouldn't be the one a caller can't parse.

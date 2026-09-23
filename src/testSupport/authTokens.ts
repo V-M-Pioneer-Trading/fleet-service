@@ -21,11 +21,21 @@ export const TEST_ACTOR = "user_2TestOperator";
 export const CONTROL_TOKEN = "test-token-fleet-control";
 export const SESSION_TOKEN = "test-token-session-no-scope";
 export const INACTIVE_TOKEN = "test-token-inactive";
+export const WRONG_SCOPE_TOKEN = "test-token-wrong-scope";
+
+// Scope strings are literals on purpose, never auth.ts constants: a test
+// center that echoed SCOPE_FLEET_CONTROL would keep passing if the constant
+// itself drifted from the contract string the center really issues.
+const FLEET_CONTROL = "fleet:control";
+const NEIGHBOURING_SCOPE = "fleet:read";
 
 /** What the center answers for a bare token. Anything not listed is inactive. */
 export const answerFor = (token: string): CenterAnswer => {
   if (token === CONTROL_TOKEN) {
-    return { state: "active", identity: { sub: TEST_ACTOR, kind: "operator", scopes: [SCOPE_FLEET_CONTROL] } };
+    return { state: "active", identity: { sub: TEST_ACTOR, kind: "operator", scopes: [FLEET_CONTROL] } };
+  }
+  if (token === WRONG_SCOPE_TOKEN) {
+    return { state: "active", identity: { sub: TEST_ACTOR, kind: "operator", scopes: [NEIGHBOURING_SCOPE] } };
   }
   if (token === SESSION_TOKEN) {
     return { state: "active", identity: { sub: TEST_ACTOR, kind: "operator", scopes: [] } };
@@ -45,3 +55,6 @@ export const bearerWithoutScope = (): string => `Bearer ${SESSION_TOKEN}`;
 
 /** A token the center answers `{"active": false}` for. */
 export const inactiveBearer = (): string => `Bearer ${INACTIVE_TOKEN}`;
+
+/** An operator holding a scope other than `fleet:control`. */
+export const bearerWithWrongScope = (): string => `Bearer ${WRONG_SCOPE_TOKEN}`;
