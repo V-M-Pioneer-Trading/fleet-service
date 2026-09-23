@@ -14,7 +14,7 @@ this file is the stuff you need to change it without breaking something.
 | `npm test` | `pretest` runs tsoa codegen, then jest |
 | `npx tsc --noEmit` | Typecheck alone. Needs `src/generated/` to exist |
 | `npx jest path/to/file.test.ts` | One suite. Skips codegen, so run `npm test` at least once first |
-| `docker compose up --build` | Needs `./clerk-jwt-key.pem` to exist |
+| `docker compose up --build` | Needs `AUTH_INTROSPECTION_SECRET` exported and a reachable auth-service (`AUTH_INTROSPECTION_URL`, default host port 3005) |
 
 `src/generated/` is gitignored and regenerated from the controllers. Never edit
 it, never import from it outside `server.ts`.
@@ -23,14 +23,14 @@ it, never import from it outside `server.ts`.
 
 | File | Owns | Depends on |
 |---|---|---|
-| `src/server.ts` | App construction, middleware order, the auth read/mutate split, the error contract, process bootstrap and shutdown | `config`, `auth`, `generated/routes`, `spacetraders/errors` |
-| `src/config.ts` | Env parsing and validation; `requireClerkJwtKey()` | `fs` only |
-| `src/auth.ts` | Clerk JWT verification, `requireScope` / `requireSession` | `jose` only |
+| `src/server.ts` | App construction (`secured()`), middleware order, the guard on the generated router's mount, the error contract, process bootstrap and shutdown | `config`, `auth`, `generated/routes`, `spacetraders/errors`, the introspection package |
+| `src/config.ts` | Env parsing and validation (the introspection vars are read by the package's `loadIntrospectionConfig()`) | nothing |
+| `src/auth.ts` | `SCOPE_FLEET_CONTROL` and `fleetRequirement`, the per-method policy. No verification | the package's types only |
 | `src/spacetraders/client.ts` | The single outbound path to st-gateway: path encoding, `Bearer` construction, priority, timeout, and the relay of the gateway's status, message and pacing headers | `config`, `./errors` |
 | `src/spacetraders/errors.ts` | `UpstreamError` and `FORWARDED_HEADERS` — the pacing headers relayed from st-gateway, in the same order and casing it sends them | nothing |
 | `src/spacetraders/types.ts` | Request-body shapes tsoa validates against | nothing |
 | `src/controllers/*.controller.ts` | Route declarations. One `spaceTradersRequest` call each | `spacetraders/client`, `spacetraders/types`, (contracts only) `config` |
-| `src/testSupport/*` | Ephemeral keypair, signed test tokens, `createTestApp` | `auth`, `server` |
+| `src/testSupport/*` | Opaque test tokens and the center's answers for them, an in-process introspector, real HTTP stubs (`stubServers.ts`), `createTestApp` | `auth`, `server` |
 
 ### Dependency rules
 
@@ -39,8 +39,8 @@ it, never import from it outside `server.ts`.
 - Controllers never call `fetch` for SpaceTraders. Every game call goes through
   `spaceTradersRequest`; that is the only place path encoding, the forwarded
   session and the timeout are applied.
-- `auth.ts` imports no config. Its trust anchor is an argument, so a test can
-  supply a different key without touching a different code path.
+- `createApp` takes an `ExpressAuth` as its argument, so a test supplies a stub
+  center without touching a different code path. There is no local verifier.
 - `testSupport/` is imported only by tests.
 
 ## Invariants
@@ -48,9 +48,11 @@ it, never import from it outside `server.ts`.
 Each of these is a rule you can catch a violation of by reading a diff:
 
 1. **No SpaceTraders credential exists in this service.** The inbound `Authorization`
-   (a verified Clerk session) is the only header forwarded upstream, verbatim, so
-   st-gateway can derive queue priority from it (auth-design.md decision 2). A
-   controller building any other `Authorization`, or any `X-Priority`, is a bug.
+   (a verified Clerk session) is forwarded verbatim to exactly two places:
+   st-gateway, so it can derive queue priority (auth-design.md decision 2), and
+   agent-service's `deliveries` call, so it can introspect the same token
+   (meta#80). The package also sends the bare token to auth-service in a form
+   body. Anywhere else, any other `Authorization`, or any `X-Priority`, is a bug.
 2. **Logs are safe to read.** No token is ever stored, logged, or put in an
    error message — grep any new `console.*` for token variables before merging.
    Caller-supplied values are `JSON.stringify`'d into log lines and upstream
@@ -69,10 +71,11 @@ Each of these is a rule you can catch a violation of by reading a diff:
    fetch has no default timeout; without one a hung upstream pins the request.
 6. **Every response body is `{ error: { message } }` or a passed-through
    SpaceTraders success body.** Nothing returns a bare string under `error`.
-7. **The service refuses to start without a Clerk key.** Do not add a default,
-   a dev bypass, or a "skip auth in test" flag.
-8. **Reads are GET/HEAD, mutations are everything else.** The middleware keys on
-   the method, not on a route list, so a new GET route is a read automatically.
+7. **The service refuses to start without `AUTH_INTROSPECTION_URL` and
+   `AUTH_INTROSPECTION_SECRET`.** Do not add a default, a dev bypass, a "skip auth
+   in test" flag, or a fallback to local verification (decision 21).
+8. **Reads are GET/HEAD, mutations are everything else.** `fleetRequirement` keys
+   on the method, not on a route list (the package presents `HEAD` to it as `GET`), so a new GET route is a read automatically.
    A new route that mutates must not be a GET. The `cors()` `methods` list must
    stay in step with what the router accepts, or a browser refuses a preflight
    for a method the server would have served.
@@ -83,22 +86,27 @@ Each of these is a rule you can catch a violation of by reading a diff:
 
 1. `app.set("etag", false)` — before any handler, or the health check degrades
    to a bodyless 304 for a client replaying a stale `If-None-Match`.
-2. `express.json()` — a malformed body must be rejected before auth spends a
-   signature verification on it.
-3. `cors()` — must answer preflight before the auth middleware, which would
-   401 an `OPTIONS` request that carries no `Authorization`.
-4. Health routes — unauthenticated, and before the API router.
-5. `/api/fleet/v1` router: read/mutate check, then `RegisterRoutes`.
-6. Swagger UI.
-7. JSON 404 — after every real mount, or it shadows them.
+2. `express.json()`, as a `passthrough()` — a malformed body must be rejected
+   before auth spends a call to auth-service on it.
+3. `cors()`, as a `passthrough()` — must answer preflight before the guard,
+   which would 401 an `OPTIONS` request that carries no `Authorization`.
+4. Health routes — `ignoreCredentials()` (never `allowPublic()`: that would
+   verify a stray bearer and tie health to auth-service), and before the API
+   router.
+5. `/api/fleet/v1`: `auth.guard(fleetRequirement)`, then the plain router
+   `RegisterRoutes` filled. Never `secured()` that router, and never mount it
+   without the guard: `secured(app)` refuses the bare mount at startup.
+6. Swagger UI — `ignoreCredentials()` on a GET route (not `use`: a POST
+   must reach the JSON 404, not a 500 from the declaration).
+7. JSON 404 — `notFound()`, after every real mount, or it shadows them.
 8. Error handler — last, and the only 4-argument `app.use`.
 
-**Contract delivery** — SpaceTraders first, agent-service second, always in that
-order. The game call is the one that can fail meaningfully; recording a delivery
+**Contract delivery** — SpaceTraders first, agent-service second (with the
+caller's `Authorization`), always in that order. The game call is the one that can fail meaningfully; recording a delivery
 that never happened is worse than losing one that did.
 
-**Startup** — `requireClerkJwtKey()` before `createApp`, so a missing key kills
-the process before a port is bound and a health check can pass.
+**Startup** — `loadIntrospectionConfig()` before `createApp`, so a missing
+variable kills the process before a port is bound and a health check can pass.
 
 **Shutdown** — `server.close()`, then `closeIdleConnections()`, then an unref'd
 force-exit timer. All three are needed: `close()` alone waits on keep-alive
@@ -119,7 +127,8 @@ Things outside this repo depend on. Changing any of them is a coordinated change
 | `Authorization` forwarded verbatim to st-gateway | st-gateway's priority derivation | A human session lands in the interactive lane; automation-service's M2M token in background |
 | `fleet:control` scope string | Clerk JWT templates | Defined once in `src/auth.ts` as `SCOPE_FLEET_CONTROL` |
 | `{ error: { message } }` body | command-interface error rendering | Uniform since the error-contract change; 400s add `error.fields` |
-| `POST {AGENT_SERVICE_URL}/contracts/{id}/deliveries` with `{ shipSymbol, tradeSymbol, units }` | agent-service | Outbound contract this service must keep sending |
+| `POST {AGENT_SERVICE_URL}/contracts/{id}/deliveries` with `{ shipSymbol, tradeSymbol, units }` and the caller's `Authorization` | agent-service | Outbound contract this service must keep sending; agent-service requires `fleet:control` on it from meta#80 step 6 |
+| `AUTH_INTROSPECTION_URL` / `AUTH_INTROSPECTION_SECRET` | infrastructure `fleet-service/main.tf` | Apply the stack before deploying an image that needs them |
 | `ghcr.io/v-m-pioneer-trading/fleet-service` | SSM bootstrap document `fleet-service-bootstrap-i-011b6b82a9072a385` | Image name is wired into the deploy |
 
 ## Domain facts not obvious from the code
@@ -137,19 +146,20 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   clients — it cannot be relayed as a field through agent-service's plain text
   or navigation-service's `ProblemDetail`, and the gateway's own errors carry
   none. See meta's `docs/design/upstream-errors.md`.
-- **jose is pinned to v5, not v6.** v6 is ESM-only and ts-jest here runs
-  CommonJS. Upgrading means moving the whole test setup to ESM.
 - **`extract` and `extract/survey` are separate upstream endpoints.** The first
   takes an optional survey in the body; the second takes a `Survey` as the
   whole body. Both exist because SpaceTraders has both.
-- **Clerk's key is a PEM public key, not a JWKS URL.** Verification is
-  networkless on purpose: an outage at Clerk must not take the fleet down.
+- **auth-service verifies; this service asks.** The package is installed from a
+  GitHub Release tarball URL pinned by integrity hash in the lockfile, so the
+  Docker build needs no git and no token. Upgrade by installing the new URL.
 
 ## Testing
 
-- `supertest` against `createTestApp()` — the real app, the real `auth.ts`, a
-  per-run RSA keypair from `testSupport/authTokens.ts`. There is no stub
-  verifier; a test that needs to get past auth signs a real token.
+- `supertest` against `createTestApp()` — the real app and the package's real
+  adapter over an in-process introspector (`testSupport/authTokens.ts`); tokens
+  are opaque strings. `introspectionWiring.test.ts` instead uses real HTTP
+  stubs (`stubServers.ts`) and never mocks `fetch`: the package calls the
+  center through `global.fetch`, so a fetch mock would swallow center calls.
 - `global.fetch` is replaced per test and restored in `afterEach`. **A test that
   mocks `fetch` without restoring it poisons every later test in the file** —
   this is the flake pattern to watch for. Keep the
@@ -171,10 +181,11 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   the case rather than being skipped, so a copy that falls behind says so
   instead of quietly checking less. `resolveJsonModule` puts the fixture in
   `dist/` beside the compiled tests; nothing at runtime imports it.
-- Suite is currently 6 files / 53 tests and has no known flakes; it was run 5×
+- Suite is currently 7 files / 71 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
-- No test reaches the network. If a new test would, mock `fetch` instead.
+- No test reaches beyond localhost. If a new test would, mock `fetch` or use a
+  local stub instead.
 
 ## Extending
 

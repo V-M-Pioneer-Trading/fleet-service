@@ -2,4 +2,3 @@ node_modules/
 dist/
 src/generated/
 .env
-clerk-jwt-key.pem

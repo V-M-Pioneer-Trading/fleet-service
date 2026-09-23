@@ -1,6 +1,6 @@
 import request from "supertest";
 import { createTestApp } from "../testSupport/createTestApp";
-import { bearer, bearerWithoutScope, expiredBearer, foreignBearer } from "../testSupport/authTokens";
+import { bearer, bearerWithoutScope, inactiveBearer } from "../testSupport/authTokens";
 
 describe("ships controller", () => {
   const app = createTestApp();
@@ -121,7 +121,10 @@ describe("ships controller", () => {
     expect(JSON.parse(options.body)).toEqual({ waypointSymbol: "X1-FQ86-B29" });
   });
 
-  describe("Clerk verification", () => {
+  // Signature, expiry and issuer are auth-service's to check now (decision 21);
+  // the wiring suite covers the center's answers over real HTTP. What stays
+  // here is the policy as the controllers see it.
+  describe("authorization", () => {
     it("rejects a mutating route with no Authorization header at all", async () => {
       global.fetch = jest.fn();
       const res = await request(app).post("/api/fleet/v1/ships/TEST-1/orbit");
@@ -140,30 +143,17 @@ describe("ships controller", () => {
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    it("rejects an expired session", async () => {
-      const res = await request(app)
-        .post("/api/fleet/v1/ships/TEST-1/orbit")
-        .set("Authorization", expiredBearer());
-
-      expect(res.status).toBe(401);
-    });
-
-    it("rejects a token signed by an untrusted key", async () => {
-      const res = await request(app)
-        .post("/api/fleet/v1/ships/TEST-1/orbit")
-        .set("Authorization", foreignBearer());
-
-      expect(res.status).toBe(401);
-    });
-
-    it("rejects a request with the game token but no Clerk session in Authorization", async () => {
-      const res = await request(app)
-        .post("/api/fleet/v1/ships/TEST-1/orbit")
-        .set("Authorization", "Bearer some-spacetraders-token");
-
-      // Well-formed but not a Clerk-signed JWT — jose rejects it during
-      // verification the same as any other invalid signature.
-      expect(res.status).toBe(401);
+    it("rejects a token the center reports inactive, including on a read", async () => {
+      global.fetch = jest.fn();
+      for (const req of [
+        request(app).post("/api/fleet/v1/ships/TEST-1/orbit"),
+        request(app).get("/api/fleet/v1/ships/TEST-1/cooldown"),
+      ]) {
+        const res = await req.set("Authorization", inactiveBearer());
+        expect(res.status).toBe(401);
+        expect(res.body).toEqual({ error: { message: "invalid or expired session" } });
+      }
+      expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it("accepts a signed-in session with no scope at all on cooldown, a read", async () => {

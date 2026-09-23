@@ -37,6 +37,8 @@ describe("contracts controller: deliver", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toContain("/my/contracts/abc/deliver");
     expect(fetchMock.mock.calls[1][0]).toContain("/contracts/abc/deliveries");
+    // Forwarded verbatim so agent-service can introspect the same token (meta#80 step 6).
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe(bearer());
   });
 
   // Same unencoded-interpolation bug as the ship symbol, on both outbound
