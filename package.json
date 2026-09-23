@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@tsoa/runtime": "^6.6.0",
+    "@v-m-pioneer-trading/introspection-client": "https://github.com/V-M-Pioneer-Trading/ts-introspection-client/releases/download/v1.0.0/v-m-pioneer-trading-introspection-client-1.0.0.tgz",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "jose": "^5.10.0",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {

@@ -1,74 +1,47 @@
 /**
- * @file Test credentials: an ephemeral keypair, generated per test run.
+ * @file Test credentials: opaque strings, and what a stub center says of them.
  *
- * Same shape as automation-service's testSupport/authTokens.ts. Tests exercise
- * the real verification path in auth.ts — no stub verifier, no bypass flag.
- * Only the trust anchor differs from production.
+ * fleet-service no longer verifies a token (auth-design.md decision 21), so a
+ * test token is not a signed JWT; it is a string the stub center recognises.
+ * Two stubs speak the same table:
+ *
+ * - {@link inProcessIntrospector}, for the controller suites. They replace
+ *   `global.fetch` to fake st-gateway and agent-service, and the package calls
+ *   the center through that same `fetch`, so a real HTTP center would collide
+ *   with their mocks. Only the transport differs: the adapter, the authorizer
+ *   and every message are the package's real ones.
+ * - `stubCenter.ts`, a real local HTTP center, for the wiring suite.
  */
 
-import { generateKeyPairSync, sign } from "crypto";
+import type { CenterAnswer, Introspector } from "@v-m-pioneer-trading/introspection-client";
 import { SCOPE_FLEET_CONTROL } from "../auth";
-
-const newKeyPair = () =>
-  generateKeyPairSync("rsa", {
-    modulusLength: 2048,
-    publicKeyEncoding: { type: "spki", format: "pem" },
-    privateKeyEncoding: { type: "pkcs8", format: "pem" },
-  });
-
-const { publicKey, privateKey } = newKeyPair();
-/** A second, untrusted keypair — the app is never told about this one. */
-const foreign = newKeyPair();
-
-/** Pass as `auth.clerkJwtKeyPem` when constructing an app under test. */
-export const TEST_CLERK_JWT_KEY = publicKey;
 
 export const TEST_ACTOR = "user_2TestOperator";
 
-const b64url = (value: string): string => Buffer.from(value).toString("base64url");
+export const CONTROL_TOKEN = "test-token-fleet-control";
+export const SESSION_TOKEN = "test-token-session-no-scope";
+export const INACTIVE_TOKEN = "test-token-inactive";
 
-export interface TestTokenOptions {
-  scopes?: string[];
-  sub?: string;
-  /** Negative offsets produce an already-expired token. */
-  expiresInSeconds?: number;
-  issuer?: string;
-}
+/** What the center answers for a bare token. Anything not listed is inactive. */
+export const answerFor = (token: string): CenterAnswer => {
+  if (token === CONTROL_TOKEN) {
+    return { state: "active", identity: { sub: TEST_ACTOR, kind: "operator", scopes: [SCOPE_FLEET_CONTROL] } };
+  }
+  if (token === SESSION_TOKEN) {
+    return { state: "active", identity: { sub: TEST_ACTOR, kind: "operator", scopes: [] } };
+  }
+  return { state: "inactive" };
+};
 
-export function signTestToken(options: TestTokenOptions = {}): string {
-  return signWith(privateKey, options);
-}
+export const inProcessIntrospector: Introspector = {
+  introspect: async (token: string) => answerFor(token),
+};
 
-function signWith(key: string, options: TestTokenOptions): string {
-  const { scopes = [SCOPE_FLEET_CONTROL], sub = TEST_ACTOR, expiresInSeconds = 300, issuer } = options;
+/** An operator holding `fleet:control`. */
+export const bearer = (): string => `Bearer ${CONTROL_TOKEN}`;
 
-  const issuedAt = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    sub,
-    scope: scopes.join(" "),
-    iat: issuedAt,
-    exp: issuedAt + expiresInSeconds,
-    ...(issuer !== undefined ? { iss: issuer } : {}),
-  };
+/** A signed-in operator who holds no scope at all. */
+export const bearerWithoutScope = (): string => `Bearer ${SESSION_TOKEN}`;
 
-  const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
-  const signature = sign("RSA-SHA256", Buffer.from(signingInput), key).toString("base64url");
-  return `${signingInput}.${signature}`;
-}
-
-/** Ready-to-use `Authorization` header value for an operator with full control. */
-export const bearer = (options: TestTokenOptions = {}): string => `Bearer ${signTestToken(options)}`;
-
-/** A signed-in operator who holds no scope at all — the no-scope, empty case. */
-export const bearerWithoutScope = (): string => bearer({ scopes: [] });
-
-/** A well-formed token whose `exp` has already passed. */
-export const expiredBearer = (): string => bearer({ expiresInSeconds: -60 });
-
-/**
- * Correctly-shaped, correct scopes, valid `exp` — signed by a key the service
- * has never seen. The one token that proves the signature is actually checked
- * rather than the payload merely being decoded.
- */
-export const foreignBearer = (): string => `Bearer ${signWith(foreign.privateKey, {})}`;
+/** A token the center answers `{"active": false}` for. */
+export const inactiveBearer = (): string => `Bearer ${INACTIVE_TOKEN}`;

@@ -1,5 +1,3 @@
-import { readFileSync } from "fs";
-
 /**
  * Reads a positive-integer env var, or the fallback when it is unset/empty.
  *
@@ -30,36 +28,4 @@ export const config = {
   // fetch has no default timeout. Generous by default because st-gateway
   // queues background traffic behind interactive traffic.
   upstreamTimeoutMs: envInt("UPSTREAM_TIMEOUT_MS", 30_000),
-  // Only Clerk holds the private half of the key requireClerkJwtKey() reads,
-  // so this narrows misconfiguration rather than adding a control.
-  clerkIssuer: process.env.CLERK_ISSUER ?? null,
-};
-
-/**
- * Clerk's public key comes either inline (`CLERK_JWT_KEY`, how production
- * passes it from SSM through the bootstrap script) or as a path
- * (`CLERK_JWT_KEY_FILE`, how compose mounts the local dev key). Neither has a
- * default — a service that can start without a trust anchor is one that can
- * be deployed with authentication silently off.
- *
- * Deliberately **not** eagerly evaluated into the `config` object above: this
- * module is imported by every test file (via `server.ts`), and calling this
- * at import time would make every test require real Clerk env vars. It's
- * called once, explicitly, in `server.ts`'s process bootstrap; tests
- * construct their own `AuthConfig` via `createTestApp` instead.
- */
-export const requireClerkJwtKey = (): string => {
-  const inline = process.env.CLERK_JWT_KEY;
-  if (inline !== undefined && inline !== "") {
-    return inline.replace(/\\n/g, "\n");
-  }
-
-  const path = process.env.CLERK_JWT_KEY_FILE;
-  if (path !== undefined && path !== "") {
-    const pem = readFileSync(path, "utf8").trim();
-    if (pem === "") throw new Error(`CLERK_JWT_KEY_FILE (${path}) is empty`);
-    return pem;
-  }
-
-  throw new Error("CLERK_JWT_KEY or CLERK_JWT_KEY_FILE must be set");
 };

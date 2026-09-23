@@ -1,9 +1,17 @@
 import { ValidateError } from "@tsoa/runtime";
 import cors from "cors";
-import express, { NextFunction, Request, Response } from "express";
+import {
+  createExpressAuth,
+  loadIntrospectionConfig,
+  notFound,
+  passthrough,
+  secured,
+  type ExpressAuth,
+} from "@v-m-pioneer-trading/introspection-client";
+import express, { ErrorRequestHandler, Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
-import { config, requireClerkJwtKey } from "./config";
-import { createVerifier, SCOPE_FLEET_CONTROL, type AuthConfig } from "./auth";
+import { config } from "./config";
+import { fleetRequirement } from "./auth";
 import { RegisterRoutes } from "./generated/routes";
 import swaggerSpec from "./generated/swagger.json";
 import { FORWARDED_HEADERS, UpstreamError } from "./spacetraders/errors";
@@ -11,7 +19,7 @@ import { FORWARDED_HEADERS, UpstreamError } from "./spacetraders/errors";
 /**
  * Every error this service returns has the same shape as SpaceTraders' own —
  * `{ error: { message } }` — so a caller has one thing to read whether the
- * refusal came from Clerk verification here, from request validation, or from
+ * refusal came from authentication here, from request validation, or from
  * the game upstream. Validation failures carry the offending `fields` too.
  */
 const errorBody = (message: string, fields?: unknown) => ({
@@ -30,30 +38,37 @@ const clientErrorStatus = (err: unknown): number | null => {
   return typeof status === "number" && status >= 400 && status < 500 && candidate?.expose === true ? status : null;
 };
 
-// `auth` is a required argument, ahead of no others here, so no call site can
-// construct this service without deciding what it trusts — same reasoning as
-// automation-service's createApp.
-export function createApp(auth: AuthConfig) {
-  const app = express();
+// `auth` is a required argument, so no call site can construct this service
+// without deciding what it trusts. Production passes one built from
+// loadIntrospectionConfig(); tests pass one wired to a stub center.
+//
+// The app is secured(): a route registered on it without a declaration as its
+// first handler refuses to start. The generated router cannot be secured (its
+// routes carry no declarations), so the guard on its mount protects it.
+export function createApp(auth: ExpressAuth) {
+  const app = secured(express());
 
   // Every response here is either a live status check or the result of an
   // action against SpaceTraders — none of it is meaningfully cacheable
   app.set("etag", false);
 
-  app.use(express.json());
+  app.use(passthrough(express.json(), "parses bodies; never answers a request for a resource"));
   app.use(
-    cors({
-      origin: config.corsAllowedOrigin,
-      // HEAD is here because the router below treats it as a read; without it
-      // a browser's preflight for a HEAD carrying Authorization is refused.
-      methods: ["GET", "HEAD", "POST", "PATCH"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-      // Pacing headers relayed from st-gateway. None of these is CORS-safelisted,
-      // so without this a browser sees the 429 and not the instructions that came
-      // with it — the relay would reach the network and stop at the last hop that
-      // matters.
-      exposedHeaders: [...FORWARDED_HEADERS],
-    })
+    passthrough(
+      cors({
+        origin: config.corsAllowedOrigin,
+        // HEAD is here because the router below treats it as a read; without it
+        // a browser's preflight for a HEAD carrying Authorization is refused.
+        methods: ["GET", "HEAD", "POST", "PATCH"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        // Pacing headers relayed from st-gateway. None of these is CORS-safelisted,
+        // so without this a browser sees the 429 and not the instructions that came
+        // with it — the relay would reach the network and stop at the last hop that
+        // matters.
+        exposedHeaders: [...FORWARDED_HEADERS],
+      }),
+      "answers CORS preflights; never serves a resource"
+    )
   );
 
   const health = (_req: Request, res: Response) => {
@@ -62,38 +77,29 @@ export function createApp(auth: AuthConfig) {
   };
   // Bare for local dev/compose; also mounted under /api/fleet since production
   // CloudFront only routes requests matching a configured path pattern.
-  app.get("/health", health);
-  app.get("/api/fleet/health", health);
+  app.get("/health", auth.allowPublic(), health);
+  app.get("/api/fleet/health", auth.allowPublic(), health);
 
-  const { requireScope, requireSession } = createVerifier(auth);
-  const requireControl = requireScope(SCOPE_FLEET_CONTROL);
-  const requireSignedIn = requireSession();
-
-  const apiRouter = express.Router();
   // Every route here is either a mutation (needs fleet:control) or one of the
-  // two reads, cooldown/cargo (needs only a signed-in operator — no scope,
-  // auth-design.md decision 18: fleet-service holds no SpaceTraders credential
-  // of its own, so an anonymous caller has nothing to read regardless of
-  // scope). The split tracks HTTP method exactly: every GET here is a read,
-  // everything else mutates. HEAD counts as a read because Express answers it
-  // from the GET handler — treating it as a mutation demanded fleet:control
-  // for a body-less version of a route the same session could already GET.
-  const isRead = (method: string) => method === "GET" || method === "HEAD";
-  apiRouter.use((req, res, next) => (isRead(req.method) ? requireSignedIn : requireControl)(req, res, next));
-  RegisterRoutes(apiRouter);
-  app.use("/api/fleet/v1", apiRouter);
+  // two reads, cooldown/cargo (needs any verified session); see auth.ts. A
+  // HEAD reaches the resolver as GET, so it is a read, as it always was here.
+  const generatedRouter = express.Router();
+  RegisterRoutes(generatedRouter);
+  app.use("/api/fleet/v1", auth.guard(fleetRequirement), generatedRouter);
 
-  app.use("/api/fleet/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use("/api/fleet/swagger", auth.allowPublic(), swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // Express' default 404 is an HTML page; every other answer from this service
   // is JSON, so a mistyped path shouldn't be the one a caller can't parse.
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json(errorBody("not found"));
-  });
+  app.use(
+    notFound((_req: Request, res: Response) => {
+      res.status(404).json(errorBody("not found"));
+    })
+  );
 
   // tsoa's generated routes forward controller/validation errors to next(err) — map each to a
   // proper status instead of letting Express fall through to a bare 500.
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const onError: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
     if (err instanceof ValidateError) {
       res.status(400).json(errorBody("validation failed", err.fields));
       return;
@@ -121,13 +127,17 @@ export function createApp(auth: AuthConfig) {
     }
     console.error(err);
     res.status(500).json(errorBody("internal server error"));
-  });
+  };
+  app.use(onError);
 
   return app;
 }
 
 if (require.main === module) {
-  const app = createApp({ clerkJwtKeyPem: requireClerkJwtKey(), clerkIssuer: config.clerkIssuer });
+  // Throws, naming the missing variable, before a port is bound: a service
+  // that started without the center would answer 503 to every credentialed
+  // request and look like an auth outage.
+  const app = createApp(createExpressAuth(loadIntrospectionConfig()));
   const server = app.listen(config.port, () => {
     console.log(`fleet-service listening on port ${config.port}`);
   });

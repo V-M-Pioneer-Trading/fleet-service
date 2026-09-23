@@ -26,13 +26,24 @@ export class ContractsController extends Controller {
       body
     );
 
-    await recordDelivery(contractId, body);
+    await recordDelivery(contractId, body, authorization);
 
     return result;
   }
 }
 
-async function recordDelivery(contractId: string, body: DeliverContractRequestBody): Promise<void> {
+/**
+ * `authorization` is the caller's own header, forwarded verbatim so that
+ * agent-service can introspect the same token and require `fleet:control` on
+ * this route (meta#80 step 6, closing meta#71). It is sent here and to
+ * st-gateway and nowhere else, and it never reaches a log line: neither log
+ * call below mentions it, and a fetch error does not carry request headers.
+ */
+async function recordDelivery(
+  contractId: string,
+  body: DeliverContractRequestBody,
+  authorization: string
+): Promise<void> {
   // Encoded for the same reason as the SpaceTraders paths: contractId is
   // caller-supplied and would otherwise be able to steer this at another
   // agent-service route.
@@ -40,7 +51,7 @@ async function recordDelivery(contractId: string, body: DeliverContractRequestBo
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: authorization },
       body: JSON.stringify({
         shipSymbol: body.shipSymbol,
         tradeSymbol: body.tradeSymbol,
