@@ -90,11 +90,14 @@ Each of these is a rule you can catch a violation of by reading a diff:
    before auth spends a call to auth-service on it.
 3. `cors()`, as a `passthrough()` — must answer preflight before the guard,
    which would 401 an `OPTIONS` request that carries no `Authorization`.
-4. Health routes — `allowPublic()`, and before the API router.
+4. Health routes — `ignoreCredentials()` (never `allowPublic()`: that would
+   verify a stray bearer and tie health to auth-service), and before the API
+   router.
 5. `/api/fleet/v1`: `auth.guard(fleetRequirement)`, then the plain router
    `RegisterRoutes` filled. Never `secured()` that router, and never mount it
    without the guard: `secured(app)` refuses the bare mount at startup.
-6. Swagger UI — `allowPublic()` on the mount.
+6. Swagger UI — `ignoreCredentials()` on a GET route (not `use`: a POST
+   must reach the JSON 404, not a 500 from the declaration).
 7. JSON 404 — `notFound()`, after every real mount, or it shadows them.
 8. Error handler — last, and the only 4-argument `app.use`.
 

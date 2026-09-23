@@ -64,6 +64,37 @@ describe("introspection wiring", () => {
     }
   );
 
+  // ignoreCredentials(): these routes never read identity, so a bearer is not
+  // verified. Under allowPublic() the inactive token below would be a 401 after
+  // one center call, and a down center a 503.
+  it.each(["/health", "/api/fleet/health", "/api/fleet/swagger/"])(
+    "ignores a bearer on %s: 200, and the center is never asked",
+    async (path) => {
+      // A valid token too: allowPublic() would serve it 200, so only the call
+      // count below tells the two declarations apart for that one.
+      for (const header of [`Bearer ${CONTROL_TOKEN}`, `Bearer ${INACTIVE_TOKEN}`, "Bearer not-a-token-at-all", "Bearer abc def"]) {
+        const res = await request(app()).get(path).set("Authorization", header);
+
+        expect(res.status).toBe(200);
+      }
+      expect(center.calls).toHaveLength(0);
+    }
+  );
+
+  it.each(["/health", "/api/fleet/health", "/api/fleet/swagger/"])(
+    "serves %s with a bearer while the center is unreachable",
+    async (path) => {
+      const down = await startStub(() => ({ status: 200, body: {} }));
+      await down.close();
+
+      const res = await request(appWith(`${down.url}/auth/v1/introspect`))
+        .get(path)
+        .set("Authorization", `Bearer ${CONTROL_TOKEN}`);
+
+      expect(res.status).toBe(200);
+    }
+  );
+
   it("answers an unmatched path outside the API with the JSON 404, never asking the center", async () => {
     const res = await request(app()).post("/nowhere").set("Authorization", `Bearer ${CONTROL_TOKEN}`);
 
@@ -118,6 +149,14 @@ describe("introspection wiring", () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: { message: "not found" } });
+  });
+
+  it("answers a POST to swagger carrying a bearer with the JSON 404, never asking the center", async () => {
+    const res = await request(app()).post("/api/fleet/swagger/").set("Authorization", `Bearer ${CONTROL_TOKEN}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: { message: "not found" } });
+    expect(center.calls).toHaveLength(0);
   });
 
   it("still serves swagger-ui static assets under the GET-only mount", async () => {

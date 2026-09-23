@@ -77,8 +77,11 @@ export function createApp(auth: ExpressAuth) {
   };
   // Bare for local dev/compose; also mounted under /api/fleet since production
   // CloudFront only routes requests matching a configured path pattern.
-  app.get("/health", auth.allowPublic(), health);
-  app.get("/api/fleet/health", auth.allowPublic(), health);
+  // ignoreCredentials(), not allowPublic(): health reads no identity, so a
+  // bearer sent here is never read and auth-service is never called. Health
+  // must not turn 401 on a stale token or 503 while auth-service is down.
+  app.get("/health", auth.ignoreCredentials(), health);
+  app.get("/api/fleet/health", auth.ignoreCredentials(), health);
 
   // Every route here is either a mutation (needs fleet:control) or one of the
   // two reads, cooldown/cargo (needs any verified session); see auth.ts. A
@@ -88,14 +91,14 @@ export function createApp(auth: ExpressAuth) {
   app.use("/api/fleet/v1", auth.guard(fleetRequirement), generatedRouter);
 
   // Declared on GET (Express sends HEAD there too) so every other method falls
-  // through to the JSON 404 below; declared with app.use, allowPublic() met a
-  // POST and answered 500 "this route declares no required scope". The UI sits
-  // in a router mounted inside it because swaggerUi.serve is serve-static,
-  // which needs the prefix stripped to find its assets, and a route handler
-  // does not strip one.
+  // through to the JSON 404 below; declared with app.use, a POST would reach
+  // the declaration and answer 500. ignoreCredentials() for the same reason as
+  // health: the docs read no identity. The UI sits in a router mounted inside
+  // it because swaggerUi.serve is serve-static, which needs the prefix
+  // stripped to find its assets, and a route handler does not strip one.
   const swaggerUiRouter = express.Router();
   swaggerUiRouter.use("/api/fleet/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  app.get(["/api/fleet/swagger", "/api/fleet/swagger/*"], auth.allowPublic(), swaggerUiRouter);
+  app.get(["/api/fleet/swagger", "/api/fleet/swagger/*"], auth.ignoreCredentials(), swaggerUiRouter);
 
   // Express' default 404 is an HTML page; every other answer from this service
   // is JSON, so a mistyped path shouldn't be the one a caller can't parse.

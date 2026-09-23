@@ -95,9 +95,11 @@ The exact behaviour is fixed by `meta/fixtures/introspection.json`:
 | Active, mutation, no `fleet:control` | `403 this action requires a scope this session does not carry` | yes |
 | auth-service unreachable, slow, non-2xx, malformed, or refusing our secret | `503 the authentication service could not process this request` | yes |
 
-The health routes and Swagger UI are declared public and never call
-auth-service. The app is wrapped in the package's `secured()`, so a route added
-without a declaration refuses to start; the tsoa-generated router cannot carry
+The health routes and Swagger UI are declared `ignoreCredentials()`: their
+`Authorization` header is never read and they never call auth-service, so
+they answer the same with no header, a bad one, or auth-service down. The
+app is wrapped in the package's `secured()`, so a route added without a
+declaration refuses to start; the tsoa-generated router cannot carry
 declarations, so the guard sits on its mount instead. Fail-closed is
 deliberate: with auth-service down every API route here answers `503`, and
 there is no fallback to local verification (decision 21).
@@ -153,7 +155,8 @@ that session by the gateway itself; nothing a caller declares can change it.
 | `GET` | `/ships/{shipSymbol}/cargo` | signed-in | — |
 | `POST` | `/contracts/{contractId}/deliver` | `fleet:control` | `{ shipSymbol, tradeSymbol, units }` |
 
-`GET /health` and `GET /api/fleet/health` need no auth and answer
+`GET /health` and `GET /api/fleet/health` need no auth, ignore any
+`Authorization` header, and answer
 `{"status":"ok"}` with `Cache-Control: no-store`. Both exist because local
 compose hits the bare path while production CloudFront only routes paths
 matching its configured pattern.
