@@ -143,6 +143,9 @@ describe("introspection wiring", () => {
       }));
     });
     afterAll(() => bare.close());
+    beforeEach(() => {
+      bare.calls.length = 0;
+    });
 
     it("still serves a read, not 503", async () => {
       const res = await request(bareApp()).get("/api/fleet/v1/ships/S-1/cooldown").set("Authorization", "Bearer guest");
@@ -157,6 +160,7 @@ describe("introspection wiring", () => {
 
       expect(res.status).toBe(403);
       expect(res.body).toEqual({ error: { message: MESSAGES.missingScope } });
+      expect(bare.calls).toHaveLength(1);
       expect(gateway.calls).toHaveLength(0);
     });
   });
