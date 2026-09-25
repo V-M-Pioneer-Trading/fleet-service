@@ -128,6 +128,43 @@ describe("introspection wiring", () => {
     expect(gateway.calls).toHaveLength(1);
   });
 
+  // RFC 7662 makes `scope` optional, and auth-service before its #4 left the
+  // key out for a token carrying no scopes. Client 1.1.0 read that as a
+  // malformed answer and served 503 to every scopeless session; 1.1.1 reads it
+  // as no scopes. Pinned here with a real center that omits the key.
+  describe("a center that omits scope for a scopeless session", () => {
+    let bare: Stub;
+    const bareApp = () => appWith(`${bare.url}/auth/v1/introspect`);
+
+    beforeAll(async () => {
+      bare = await startStub(() => ({
+        status: 200,
+        body: { active: true, sub: "user_guest", kind: "operator", exp: Math.floor(Date.now() / 1000) + 300 },
+      }));
+    });
+    afterAll(() => bare.close());
+    beforeEach(() => {
+      bare.calls.length = 0;
+    });
+
+    it("still serves a read, not 503", async () => {
+      const res = await request(bareApp()).get("/api/fleet/v1/ships/S-1/cooldown").set("Authorization", "Bearer guest");
+
+      expect(res.status).toBe(200);
+      expect(bare.calls).toHaveLength(1);
+      expect(gateway.calls).toHaveLength(1);
+    });
+
+    it("refuses a mutation with 403, not 503", async () => {
+      const res = await request(bareApp()).post("/api/fleet/v1/ships/S-1/orbit").set("Authorization", "Bearer guest");
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: { message: MESSAGES.missingScope } });
+      expect(bare.calls).toHaveLength(1);
+      expect(gateway.calls).toHaveLength(0);
+    });
+  });
+
   it("refuses a mutation to a session without fleet:control, with the exact message", async () => {
     const res = await request(app()).post("/api/fleet/v1/ships/S-1/orbit").set("Authorization", `Bearer ${SESSION_TOKEN}`);
 
