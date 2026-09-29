@@ -10,6 +10,8 @@
  */
 
 import { createExpressAuth, MESSAGES } from "@v-m-pioneer-trading/introspection-client";
+import { createServer } from "node:http";
+import { connect, type AddressInfo } from "node:net";
 import request from "supertest";
 import { config } from "../config";
 import { createApp } from "../server";
@@ -244,6 +246,47 @@ describe("introspection wiring", () => {
       expect(center.calls).toHaveLength(0);
     }
   );
+
+  // supertest cannot send two Authorization lines: Node folds them. A raw
+  // socket can, and client 1.1.2 counts the lines in rawHeaders, so a repeated
+  // header is no credential (first-wins/last-wins would be a smuggling seam).
+  describe("repeated Authorization lines on the wire", () => {
+    const rawPost = (headerLines: string[]) =>
+      new Promise<string>((resolve, reject) => {
+        const server = createServer(app());
+        server.listen(0, "127.0.0.1", () => {
+          const { port } = server.address() as AddressInfo;
+          const socket = connect(port, "127.0.0.1");
+          let out = "";
+          socket.on("data", (d) => (out += d.toString("latin1")));
+          socket.on("error", reject);
+          socket.on("close", () => server.close(() => resolve(out)));
+          socket.write(
+            [
+              "POST /api/fleet/v1/ships/S-1/orbit HTTP/1.1",
+              `Host: 127.0.0.1:${port}`,
+              ...headerLines,
+              "Content-Length: 0",
+              "Connection: close",
+              "",
+              "",
+            ].join("\r\n")
+          );
+        });
+      });
+
+    it.each([
+      ["two Authorization lines", [`Authorization: Bearer ${CONTROL_TOKEN}`, `Authorization: Bearer ${CONTROL_TOKEN}`]],
+      ["a bearer plus an empty second line", ["Authorization: Bearer a", "Authorization:"]],
+    ])("reads %s as no credential: 401, and the center is never asked", async (_name, lines) => {
+      const raw = await rawPost(lines);
+
+      expect(raw).toMatch(/^HTTP\/1\.1 401 /);
+      expect(JSON.parse(raw.slice(raw.indexOf("\r\n\r\n") + 4))).toEqual({ error: { message: "a bearer token is required" } });
+      expect(center.calls).toHaveLength(0);
+      expect(gateway.calls).toHaveLength(0);
+    });
+  });
 
   describe("HEAD follows GET", () => {
     it("serves HEAD on a read to a session with no scope", async () => {
