@@ -90,10 +90,10 @@ The exact behaviour is fixed by `meta/fixtures/introspection.json`:
 
 | Situation | Answer | auth-service called |
 |---|---|---|
-| No `Authorization`, or one that is not exactly `Bearer <token>` (`Bearer`, `Bearer `, `Bearer abc def`), or more than one `Authorization` line on the wire (client 1.1.2 counts them in `rawHeaders`) | `401 a bearer token is required` | no |
+| No `Authorization`, or one that is not exactly `Bearer <token>` (`Bearer`, `Bearer `, `Bearer abc def`), or more than one `Authorization` line on the wire (client 1.1.2 and later count them in `rawHeaders`) | `401 a bearer token is required` | no |
 | auth-service says the token is inactive | `401 invalid or expired session` | yes |
 | Active, mutation, no `fleet:control` | `403 this action requires a scope this session does not carry` | yes |
-| auth-service unreachable, slow, non-2xx, malformed, or refusing our secret | `503 the authentication service could not process this request` | yes |
+| auth-service unreachable, slow, non-2xx, malformed (client 1.1.3 refuses a repeated key at any depth), or refusing our secret | `503 the authentication service could not process this request` | yes |
 
 The health routes and Swagger UI are declared `ignoreCredentials()`: their
 `Authorization` header is never read and they never call auth-service, so

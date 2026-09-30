@@ -35,7 +35,7 @@ export async function startStub(reply: Reply): Promise<Stub> {
       calls.push(recorded);
       const { status, body: out } = reply(recorded);
       res.writeHead(status, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(out));
+      res.end(typeof out === "string" ? out : JSON.stringify(out)); // a string is sent verbatim
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
