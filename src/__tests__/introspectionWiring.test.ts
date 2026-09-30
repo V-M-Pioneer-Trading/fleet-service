@@ -236,6 +236,29 @@ describe("introspection wiring", () => {
     expect(gateway.calls).toHaveLength(0);
   });
 
+  // Client 1.1.3 reads the center's answer with a strict reader: a key repeated
+  // at any depth is a malformed answer. JSON.parse would keep the last `sub`
+  // (user_b) and serve the request. The stub sends the raw text, since an
+  // object cannot carry a duplicate key.
+  it("answers 503 when the center repeats a key, after exactly one center call", async () => {
+    const dup = await startStub(() => ({
+      status: 200,
+      body: '{"active":true,"sub":"user_a","sub":"user_b","scope":"fleet:control","exp":4102444800,"kind":"operator"}',
+    }));
+    try {
+      const res = await request(appWith(`${dup.url}/auth/v1/introspect`))
+        .post("/api/fleet/v1/ships/S-1/orbit")
+        .set("Authorization", `Bearer ${CONTROL_TOKEN}`);
+
+      expect(res.status).toBe(503);
+      expect(res.body).toEqual({ error: { message: "the authentication service could not process this request" } });
+      expect(dup.calls).toHaveLength(1);
+      expect(gateway.calls).toHaveLength(0);
+    } finally {
+      await dup.close();
+    }
+  });
+
   it.each(["Bearer abc def", "Bearer ", "Bearer"])(
     "reads %j as no credential: 401, and the center is never asked",
     async (header) => {
