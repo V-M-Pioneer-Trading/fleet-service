@@ -82,7 +82,7 @@ the `GET` handler.
 
 This service verifies nothing itself. For every request that carries an
 `Authorization` header, the shared
-[`@v-m-pioneer-trading/introspection-client`](https://github.com/V-M-Pioneer-Trading/ts-introspection-client)
+[`@v-m-pioneer-trading/clerk-client`](https://github.com/V-M-Pioneer-Trading/clerk-client)
 package POSTs the token to auth-service (`AUTH_INTROSPECTION_URL`, caller
 secret in `X-Introspection-Secret`, 1 s timeout, no retry, no cache) and
 compares the answer with the requirement `src/auth.ts` declares for the method.

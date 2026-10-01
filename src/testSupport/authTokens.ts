@@ -13,7 +13,7 @@
  * - `stubCenter.ts`, a real local HTTP center, for the wiring suite.
  */
 
-import type { CenterAnswer, Introspector } from "@v-m-pioneer-trading/introspection-client";
+import type { CenterAnswer, Introspector } from "@v-m-pioneer-trading/clerk-client";
 import { SCOPE_FLEET_CONTROL } from "../auth";
 
 export const TEST_ACTOR = "user_2TestOperator";

@@ -4,12 +4,12 @@
  * auth-service is the only component that verifies a Clerk token
  * (auth-design.md decision 21). This service hands the caller's
  * `Authorization` header to it through the shared
- * `@v-m-pioneer-trading/introspection-client` package and compares the answer
+ * `@v-m-pioneer-trading/clerk-client` package and compares the answer
  * against the requirement below. There is no local verifier, no key and no
  * fallback to one: a second verification path is what decision 10 forbids.
  */
 
-import type { RequirementResolver } from "@v-m-pioneer-trading/introspection-client";
+import type { RequirementResolver } from "@v-m-pioneer-trading/clerk-client";
 
 /** The only scope fleet-service enforces: every mutating route needs it. */
 export const SCOPE_FLEET_CONTROL = "fleet:control";
