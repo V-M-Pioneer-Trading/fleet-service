@@ -7,7 +7,7 @@ import {
   passthrough,
   secured,
   type ExpressAuth,
-} from "@v-m-pioneer-trading/introspection-client";
+} from "@v-m-pioneer-trading/clerk-client";
 import express, { ErrorRequestHandler, Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import { config } from "./config";

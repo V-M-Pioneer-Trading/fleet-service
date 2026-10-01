@@ -6,7 +6,7 @@
  * why). The wiring suite builds its app against a real HTTP stub instead.
  */
 
-import { createExpressAuth } from "@v-m-pioneer-trading/introspection-client";
+import { createExpressAuth } from "@v-m-pioneer-trading/clerk-client";
 import { createApp } from "../server";
 import { inProcessIntrospector } from "./authTokens";
 

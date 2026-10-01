@@ -9,7 +9,7 @@
  * `global.fetch` is never replaced.
  */
 
-import { createExpressAuth, MESSAGES } from "@v-m-pioneer-trading/introspection-client";
+import { createExpressAuth, MESSAGES } from "@v-m-pioneer-trading/clerk-client";
 import { createServer } from "node:http";
 import { connect, type AddressInfo } from "node:net";
 import request from "supertest";
