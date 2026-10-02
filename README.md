@@ -224,6 +224,10 @@ A `401` never says *why* (expired vs. bad signature vs. wrong issuer), and a
 `403` never names the scope: the first is a probing oracle, the second
 advertises what to steal.
 
+## OpenAPI spec
+
+The API spec is committed at `openapi.json` in the repo root. Regenerate it with `npm run openapi` (no server, database or network needed) and commit the result. CI runs the same command and fails if `openapi.json` differs from what is committed. Pushes to main will sync it to meta's `openapi/fleet-service.json`. The runtime Swagger UI still reads the gitignored `src/generated/swagger.json`.
+
 ## Tests
 
 ```bash
