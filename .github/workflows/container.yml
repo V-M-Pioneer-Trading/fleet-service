@@ -59,6 +59,13 @@ jobs:
       # without this a type error in an unreferenced file reaches main.
       - run: npm run build
 
+      # The committed openapi.json must match the controllers. Regenerates it
+      # (no server, DB or network) and fails on any difference.
+      - name: Check openapi.json is up to date
+        run: |
+          npm run openapi
+          git diff --exit-code openapi.json || { echo "::error file=openapi.json::openapi.json is out of date. Run 'npm run openapi' and commit the result."; exit 1; }
+
       - run: npm test
 
   docker:
