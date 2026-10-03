@@ -5,6 +5,8 @@
  * exists, so these load the config module directly.
  */
 
+import type { config as Config } from "../config";
+
 describe("config", () => {
   const originalEnv = process.env;
 
@@ -17,7 +19,7 @@ describe("config", () => {
     process.env = originalEnv;
   });
 
-  const loadConfig = () => require("../config").config as { port: number; upstreamTimeoutMs: number };
+  const loadConfig = () => jest.requireActual<{ config: typeof Config }>("../config").config;
 
   it("defaults to port 3001 when PORT is unset", () => {
     delete process.env.PORT;

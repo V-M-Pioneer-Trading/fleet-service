@@ -68,6 +68,10 @@ jobs:
           # untracked, which git diff would let through.
           test -z "$(git status --porcelain -- openapi.json)" || { git diff -- openapi.json; echo "::error file=openapi.json::openapi.json is out of date. Run 'npm run openapi' and commit the result."; exit 1; }
 
+      # Shared ESLint config (meta#105). Type-aware, so it needs the tsoa
+      # output from the build step above.
+      - run: npm run lint
+
       - run: npm test
 
   docker:

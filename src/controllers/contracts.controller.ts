@@ -72,7 +72,7 @@ async function recordDelivery(
       // HTML error page shouldn't become kilobytes of log per request.
       console.error(
         `agent-service rejected delivery record for contract ${JSON.stringify(contractId)}: ` +
-          `${res.status} ${(await res.text()).slice(0, 500)}`
+          `${String(res.status)} ${(await res.text()).slice(0, 500)}`
       );
     }
   } catch (err) {

@@ -49,7 +49,7 @@ describe("introspection wiring", () => {
     logged = [];
     for (const level of ["log", "info", "warn", "error", "debug"] as const) {
       jest.spyOn(console, level).mockImplementation((...args: unknown[]) => {
-        logged.push(args.map((a) => (a instanceof Error ? `${a.stack} ${String(a.cause)}` : String(a))).join(" "));
+        logged.push(args.map((a) => (a instanceof Error ? `${a.stack ?? ""} ${String(a.cause)}` : String(a))).join(" "));
       });
     }
   });
@@ -283,11 +283,15 @@ describe("introspection wiring", () => {
           let out = "";
           socket.on("data", (d) => (out += d.toString("latin1")));
           socket.on("error", reject);
-          socket.on("close", () => server.close(() => resolve(out)));
+          socket.on("close", () => {
+            server.close(() => {
+              resolve(out);
+            });
+          });
           socket.write(
             [
               "POST /api/fleet/v1/ships/S-1/orbit HTTP/1.1",
-              `Host: 127.0.0.1:${port}`,
+              `Host: 127.0.0.1:${String(port)}`,
               ...headerLines,
               "Content-Length: 0",
               "Connection: close",
@@ -370,7 +374,8 @@ describe("introspection wiring", () => {
       expect(center.calls[0].url).not.toContain(CONTROL_TOKEN);
       // No other request header or URL on any outbound call carries it.
       for (const call of [...gateway.calls, ...agent.calls, ...center.calls]) {
-        const { authorization: _auth, ...rest } = call.headers;
+        const rest = { ...call.headers };
+        delete rest.authorization;
         expect(JSON.stringify(rest)).not.toContain(CONTROL_TOKEN);
         expect(call.url).not.toContain(CONTROL_TOKEN);
       }

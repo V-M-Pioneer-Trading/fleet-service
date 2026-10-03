@@ -8,7 +8,7 @@ import {
   secured,
   type ExpressAuth,
 } from "@v-m-pioneer-trading/clerk-client";
-import express, { ErrorRequestHandler, Request, Response } from "express";
+import express, { type ErrorRequestHandler, type Request, type Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import { config } from "./config";
 import { fleetRequirement } from "./auth";
@@ -110,6 +110,7 @@ export function createApp(auth: ExpressAuth) {
 
   // tsoa's generated routes forward controller/validation errors to next(err) — map each to a
   // proper status instead of letting Express fall through to a bare 500.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Express identifies an error handler by its arity of 4, so the unused `_next` must stay
   const onError: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
     if (err instanceof ValidateError) {
       res.status(400).json(errorBody("validation failed", err.fields));
@@ -119,7 +120,7 @@ export function createApp(auth: ExpressAuth) {
       const status = err.statusCode >= 400 && err.statusCode <= 599 ? err.statusCode : 502;
       // An upstream 5xx is an operational event on this side of the call, not
       // a caller mistake — log it rather than only handing it to the client.
-      if (status >= 500) console.error(`upstream failure (${status}): ${err.message}`);
+      if (status >= 500) console.error(`upstream failure (${String(status)}): ${err.message}`);
       // Guarded because this is the last handler in the chain: anything thrown
       // here escapes to Express's finalhandler, which answers with an HTML 500
       // and breaks the one-error-shape invariant for a header nobody needs.
@@ -150,7 +151,7 @@ if (require.main === module) {
   // request and look like an auth outage.
   const app = createApp(createExpressAuth(loadIntrospectionConfig()));
   const server = app.listen(config.port, () => {
-    console.log(`fleet-service listening on port ${config.port}`);
+    console.log(`fleet-service listening on port ${String(config.port)}`);
   });
 
   // Containers are stopped with SIGTERM. Without this the process dies mid
@@ -170,5 +171,9 @@ if (require.main === module) {
   };
   // `once`, not `on`: a second signal should terminate immediately rather than
   // restart the timeout above.
-  for (const signal of ["SIGTERM", "SIGINT"] as const) process.once(signal, () => shutdown(signal));
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    process.once(signal, () => {
+      shutdown(signal);
+    });
+  }
 }

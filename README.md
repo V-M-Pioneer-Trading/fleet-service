@@ -112,7 +112,8 @@ npm run build   # tsoa spec/routes into src/generated, then tsc
 npm start
 ```
 
-`npm run dev` is build + start. `npm test` runs the suite. The service listens
+`npm run dev` is build + start. `npm test` runs the suite and `npm run lint` lints it with the shared
+`@v-m-pioneer-trading/eslint-config` (meta#105; needs the tsoa output from a build or test run). The service listens
 on port `3001`; Swagger UI is at http://localhost:3001/api/fleet/swagger.
 
 The service **will not start** without `AUTH_INTROSPECTION_URL` and
