@@ -25,7 +25,7 @@ export const contractPath = (contractId: string, action: string): string =>
  */
 const upstreamMessage = (text: string): string => {
   try {
-    const message = (JSON.parse(text) as { error?: { message?: unknown } })?.error?.message;
+    const message = (JSON.parse(text) as { error?: { message?: unknown } } | null)?.error?.message;
     if (typeof message === "string" && message.length > 0) return message;
   } catch {
     // Not JSON — an HTML error page from a proxy, say. Fall through.

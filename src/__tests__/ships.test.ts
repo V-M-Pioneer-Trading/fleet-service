@@ -1,4 +1,5 @@
 import request from "supertest";
+import { fetchCalls } from "../testSupport/fetchCalls";
 import { createTestApp } from "../testSupport/createTestApp";
 import { bearer, bearerWithoutScope, inactiveBearer } from "../testSupport/authTokens";
 
@@ -15,8 +16,8 @@ describe("ships controller", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      text: async () => JSON.stringify(body),
-    }) as unknown as typeof fetch;
+      text: () => Promise.resolve(JSON.stringify(body)),
+    });
   };
 
   it("forwards a successful orbit action and returns SpaceTraders' response", async () => {
@@ -44,7 +45,7 @@ describe("ships controller", () => {
 
     await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("Authorization", session);
 
-    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    const [, options] = fetchCalls(global.fetch)[0];
     expect(options.headers.Authorization).toBe(session);
     expect(options.headers).not.toHaveProperty("X-Priority");
     expect(options.headers).not.toHaveProperty("X-SpaceTraders-Token");
@@ -61,7 +62,7 @@ describe("ships controller", () => {
       .set("Authorization", bearer());
 
     expect(res.status).toBe(200);
-    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    const [, options] = fetchCalls(global.fetch)[0];
     expect(options.headers).not.toHaveProperty("X-SpaceTraders-Token");
   });
 
@@ -72,7 +73,7 @@ describe("ships controller", () => {
       .post("/api/fleet/v1/ships/TEST-1/orbit")
       .set("Authorization", bearer());
 
-    const [url] = (global.fetch as jest.Mock).mock.calls[0];
+    const [url] = fetchCalls(global.fetch)[0];
     expect(url).toMatch(/^http:\/\/localhost:3002\/proxy\/my\/ships\/TEST-1\/orbit$/);
     expect(url).not.toContain("api.spacetraders.io");
   });
@@ -89,7 +90,7 @@ describe("ships controller", () => {
       .post(`/api/fleet/v1/ships/${encodeURIComponent("../../agent")}/orbit`)
       .set("Authorization", bearer());
 
-    const [url] = (global.fetch as jest.Mock).mock.calls[0];
+    const [url] = fetchCalls(global.fetch)[0];
     expect(new URL(url).pathname).toBe("/proxy/my/ships/..%2F..%2Fagent/orbit");
   });
 
@@ -98,8 +99,8 @@ describe("ships controller", () => {
       ok: false,
       status: 401,
       headers: new Headers(),
-      text: async () => JSON.stringify({ error: { message: "Token is missing or empty." } }),
-    }) as unknown as typeof fetch;
+      text: () => Promise.resolve(JSON.stringify({ error: { message: "Token is missing or empty." } })),
+    });
 
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
@@ -117,7 +118,7 @@ describe("ships controller", () => {
       .send({ waypointSymbol: "X1-FQ86-B29" });
 
     expect(res.status).toBe(200);
-    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    const [, options] = fetchCalls(global.fetch)[0];
     expect(JSON.parse(options.body)).toEqual({ waypointSymbol: "X1-FQ86-B29" });
   });
 

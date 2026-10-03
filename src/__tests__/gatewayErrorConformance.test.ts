@@ -74,7 +74,7 @@ describe("the shared upstream-error contract", () => {
     if (gateway.transport === "no-response") {
       // The gateway never spoke — the one condition this service is entitled to
       // classify itself.
-      global.fetch = jest.fn().mockRejectedValue(new Error("connect ECONNREFUSED")) as unknown as typeof fetch;
+      global.fetch = jest.fn().mockRejectedValue(new Error("connect ECONNREFUSED"));
     } else {
       const body =
         gateway.bodyRepeat !== undefined
@@ -84,15 +84,15 @@ describe("the shared upstream-error contract", () => {
         ok: (gateway.status ?? 0) < 400,
         status: gateway.status,
         headers: new Headers(gateway.headers ?? {}),
-        text: async () => body,
-      }) as unknown as typeof fetch;
+        text: () => Promise.resolve(body),
+      });
     }
 
     const res = await request(app).post("/api/fleet/v1/ships/TEST-1/orbit").set("Authorization", bearer());
 
     expect(res.status).toBe(testCase.expect.status);
 
-    const message = res.body?.error?.message ?? "";
+    const message = (res.body as { error?: { message?: string } }).error?.message ?? "";
     if (testCase.expect.message !== undefined) {
       // Exact: the caller needs the upstream's own sentence unaltered, so that
       // matching on it downstream means the same thing whoever relayed it.
@@ -105,7 +105,7 @@ describe("the shared upstream-error contract", () => {
       expect(message.trim()).not.toBe("");
     }
     if (testCase.expect.messageMaxLength !== undefined) {
-      expect([...message].length).toBeLessThanOrEqual(testCase.expect.messageMaxLength);
+      expect(Array.from(message).length).toBeLessThanOrEqual(testCase.expect.messageMaxLength);
     }
     for (const [name, value] of Object.entries(testCase.expect.headers ?? {})) {
       expect(res.headers[name.toLowerCase()]).toBe(value);

@@ -1,4 +1,5 @@
 import request from "supertest";
+import { fetchCalls } from "../testSupport/fetchCalls";
 import { createTestApp } from "../testSupport/createTestApp";
 import { bearer } from "../testSupport/authTokens";
 
@@ -17,15 +18,15 @@ describe("contracts controller: deliver", () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      text: async () => JSON.stringify({ data: { contract: { id: "abc" } } }),
+      text: () => Promise.resolve(JSON.stringify({ data: { contract: { id: "abc" } } })),
     });
     // 2nd call: agent-service internal deliveries endpoint
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      text: async () => "{}",
+      text: () => Promise.resolve("{}"),
     });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
 
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
@@ -35,10 +36,10 @@ describe("contracts controller: deliver", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ data: { contract: { id: "abc" } } });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0][0]).toContain("/my/contracts/abc/deliver");
-    expect(fetchMock.mock.calls[1][0]).toContain("/contracts/abc/deliveries");
+    expect(fetchCalls(fetchMock)[0][0]).toContain("/my/contracts/abc/deliver");
+    expect(fetchCalls(fetchMock)[1][0]).toContain("/contracts/abc/deliveries");
     // Forwarded verbatim so agent-service can introspect the same token (meta#80 step 6).
-    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe(bearer());
+    expect(fetchCalls(fetchMock)[1][1].headers.Authorization).toBe(bearer());
   });
 
   // Same unencoded-interpolation bug as the ship symbol, on both outbound
@@ -47,16 +48,16 @@ describe("contracts controller: deliver", () => {
   it("encodes the contract id in both the SpaceTraders and agent-service URLs", async () => {
     const fetchMock = jest
       .fn()
-      .mockResolvedValue({ ok: true, status: 200, text: async () => "{}" });
-    global.fetch = fetchMock as unknown as typeof fetch;
+      .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve("{}") });
+    global.fetch = fetchMock;
 
     await request(app)
       .post(`/api/fleet/v1/contracts/${encodeURIComponent("../../agent")}/deliver`)
       .set("Authorization", bearer())
       .send({ shipSymbol: "TEST-1", tradeSymbol: "IRON_ORE", units: 20 });
 
-    expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe("/proxy/my/contracts/..%2F..%2Fagent/deliver");
-    expect(new URL(fetchMock.mock.calls[1][0]).pathname).toBe("/api/agent/v1/contracts/..%2F..%2Fagent/deliveries");
+    expect(new URL(fetchCalls(fetchMock)[0][0]).pathname).toBe("/proxy/my/contracts/..%2F..%2Fagent/deliver");
+    expect(new URL(fetchCalls(fetchMock)[1][0]).pathname).toBe("/api/agent/v1/contracts/..%2F..%2Fagent/deliveries");
   });
 
   it("still returns the successful delivery if recording it in agent-service fails", async () => {
@@ -64,10 +65,10 @@ describe("contracts controller: deliver", () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      text: async () => JSON.stringify({ data: { contract: { id: "abc" } } }),
+      text: () => Promise.resolve(JSON.stringify({ data: { contract: { id: "abc" } } })),
     });
     fetchMock.mockRejectedValueOnce(new Error("agent-service unreachable"));
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
 
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")
@@ -90,9 +91,9 @@ describe("contracts controller: deliver", () => {
 
     const fetchMock = jest
       .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => "{}" })
-      .mockResolvedValueOnce({ ok: false, status: 500, headers: new Headers(), text: async () => "x".repeat(3000) });
-    global.fetch = fetchMock as unknown as typeof fetch;
+      .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve("{}") })
+      .mockResolvedValueOnce({ ok: false, status: 500, headers: new Headers(), text: () => Promise.resolve("x".repeat(3000)) });
+    global.fetch = fetchMock;
 
     await request(app)
       .post(`/api/fleet/v1/contracts/${encodeURIComponent("abc\nforged log line")}/deliver`)
@@ -110,9 +111,9 @@ describe("contracts controller: deliver", () => {
       ok: false,
       status: 400,
       headers: new Headers(),
-      text: async () => JSON.stringify({ error: { message: "no cargo to deliver" } }),
+      text: () => Promise.resolve(JSON.stringify({ error: { message: "no cargo to deliver" } })),
     });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
 
     const res = await request(app)
       .post("/api/fleet/v1/contracts/abc/deliver")

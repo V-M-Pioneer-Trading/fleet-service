@@ -14,7 +14,6 @@
  */
 
 import type { CenterAnswer, Introspector } from "@v-m-pioneer-trading/clerk-client";
-import { SCOPE_FLEET_CONTROL } from "../auth";
 
 export const TEST_ACTOR = "user_2TestOperator";
 
@@ -44,7 +43,7 @@ export const answerFor = (token: string): CenterAnswer => {
 };
 
 export const inProcessIntrospector: Introspector = {
-  introspect: async (token: string) => answerFor(token),
+  introspect: (token: string) => Promise.resolve(answerFor(token)),
 };
 
 /** An operator holding `fleet:control`. */

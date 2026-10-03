@@ -7,8 +7,13 @@
  */
 
 import request from "supertest";
+import { fetchCalls } from "../testSupport/fetchCalls";
 import { createTestApp } from "../testSupport/createTestApp";
 import { bearer } from "../testSupport/authTokens";
+
+interface ErrorBody {
+  error: { message: string };
+}
 
 describe("error contract", () => {
   const app = createTestApp();
@@ -20,7 +25,7 @@ describe("error contract", () => {
   });
 
   const mockFetch = (impl: unknown) => {
-    global.fetch = impl as unknown as typeof fetch;
+    global.fetch = impl as typeof fetch;
   };
 
   // Old behaviour: body-parser's SyntaxError fell through to the catch-all
@@ -53,14 +58,14 @@ describe("error contract", () => {
   // answering 200 with an HTML error page threw a SyntaxError inside the
   // controller and the caller was told the fault was here, as a 500.
   it("answers a non-JSON 2xx from st-gateway with 502", async () => {
-    mockFetch(jest.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "<html>gateway</html>" }));
+    mockFetch(jest.fn().mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve("<html>gateway</html>") }));
 
     const res = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
       .set("Authorization", bearer());
 
     expect(res.status).toBe(502);
-    expect(res.body.error.message).toMatch(/non-JSON/);
+    expect((res.body as ErrorBody).error.message).toMatch(/non-JSON/);
   });
 
   // Old behaviour: a rejected fetch (gateway down, DNS failure, and — since
@@ -74,18 +79,18 @@ describe("error contract", () => {
       .set("Authorization", bearer());
 
     expect(res.status).toBe(504);
-    expect(res.body.error.message).toMatch(/st-gateway did not answer/);
+    expect((res.body as ErrorBody).error.message).toMatch(/st-gateway did not answer/);
   });
 
   it("passes an outbound abort deadline to st-gateway so a hung upstream can't hold the request open", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "{}" });
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve("{}") });
     mockFetch(fetchMock);
 
     await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit")
       .set("Authorization", bearer());
 
-    const [, options] = fetchMock.mock.calls[0];
+    const [, options] = fetchCalls(fetchMock)[0];
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -100,7 +105,7 @@ describe("error contract", () => {
         ok: false,
         status: 400,
         headers: new Headers(),
-        text: async () => JSON.stringify({ error: { message: "Ship is not currently docked.", code: 4214 } }),
+        text: () => Promise.resolve(JSON.stringify({ error: { message: "Ship is not currently docked.", code: 4214 } })),
       })
     );
 
@@ -113,8 +118,8 @@ describe("error contract", () => {
 
     const unauthorized = await request(app)
       .post("/api/fleet/v1/ships/TEST-1/orbit");
-    expect(Object.keys(unauthorized.body)).toEqual(Object.keys(res.body));
-    expect(typeof unauthorized.body.error.message).toBe("string");
+    expect(Object.keys(unauthorized.body as object)).toEqual(Object.keys(res.body as object));
+    expect(typeof (unauthorized.body as ErrorBody).error.message).toBe("string");
   });
 
   // Old behaviour: the router treated HEAD as a read but CORS advertised only
@@ -137,7 +142,8 @@ describe("error contract", () => {
       .send({});
 
     expect(res.status).toBe(400);
-    expect(res.body.error.message).toBe("validation failed");
-    expect(res.body.error.fields).toHaveProperty(["body.waypointSymbol"]);
+    const { error } = res.body as { error: { message: string; fields: object } };
+    expect(error.message).toBe("validation failed");
+    expect(error.fields).toHaveProperty(["body.waypointSymbol"]);
   });
 });

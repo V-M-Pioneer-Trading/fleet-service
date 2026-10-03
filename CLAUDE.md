@@ -12,6 +12,7 @@ this file is the stuff you need to change it without breaking something.
 | `npm start` | `node dist/server.js`. Needs a build first |
 | `npm run dev` | build + start |
 | `npm test` | `pretest` runs tsoa codegen, then jest |
+| `npm run lint` | Shared ESLint config (`@v-m-pioneer-trading/eslint-config`, meta#105), type-aware, `--max-warnings 0`. Needs `src/generated/` to exist. Fix violations; an `eslint-disable` needs a `-- reason`. Bump the config: `npm install --save-dev <new release tarball URL>`, commit `package.json` + lockfile |
 | `npx tsc --noEmit` | Typecheck alone. Needs `src/generated/` to exist |
 | `npx jest path/to/file.test.ts` | One suite. Skips codegen, so run `npm test` at least once first |
 | `docker compose up --build` | Needs `AUTH_INTROSPECTION_SECRET` exported and a reachable auth-service (`AUTH_INTROSPECTION_URL`, default host port 3005) |
