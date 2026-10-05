@@ -110,7 +110,6 @@ export function createApp(auth: ExpressAuth) {
 
   // tsoa's generated routes forward controller/validation errors to next(err) — map each to a
   // proper status instead of letting Express fall through to a bare 500.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Express identifies an error handler by its arity of 4, so the unused `_next` must stay
   const onError: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
     if (err instanceof ValidateError) {
       res.status(400).json(errorBody("validation failed", err.fields));
