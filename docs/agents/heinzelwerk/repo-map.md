@@ -17,3 +17,8 @@ Stateless ship actions (orbit, dock, navigate, survey, extract, refuel, contract
 - Called by: command-interface, automation-service.
 - No `typecheck` script: `npx tsc --noEmit`.
 - CI `container.yml`: `test` (build, openapi freshness, lint, test), `docker` (main: SSM redeploy), `sync-openapi`.
+
+## Reference docs
+
+- `README.md` "API", "Errors", "Authentication": read when adding or changing a ship or contract route, or its error and auth answers.
+- `README.md` "Environment variables": read when changing config.

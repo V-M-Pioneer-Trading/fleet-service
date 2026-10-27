@@ -250,10 +250,9 @@ Deliberate, and worth knowing before you file a bug:
 - **A failed delivery record is lost forever.** No retry, no outbox, no queue —
   just a `console.error`. Contract history in agent-service can silently drift
   from what actually happened in the game.
-- **The delivery record is authenticated only once agent-service enforces it.**
+- **The delivery record is authenticated by agent-service, not here.**
   fleet-service forwards the caller's `Authorization` verbatim on that call
-  (meta#80 step 5); agent-service starts requiring `fleet:control` there in
-  step 6. Until then the route stays open, which is meta#71.
+  (meta#80 step 5); agent-service requires `fleet:control` on it (meta#71).
 - **No retries anywhere.** A single failed upstream call fails the request.
   Rate limiting and back-off are st-gateway's job by design; transient network
   faults are the caller's problem.

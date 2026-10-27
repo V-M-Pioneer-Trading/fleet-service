@@ -182,8 +182,7 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   the case rather than being skipped, so a copy that falls behind says so
   instead of quietly checking less. `resolveJsonModule` puts the fixture in
   `dist/` beside the compiled tests; nothing at runtime imports it.
-- Suite is currently 7 files / 71 tests and has no known flakes; it was run 5×
-  clean at the last change. If you see an intermittent failure, suspect an
+- Suite has no known flakes; it was run 5× clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
 - No test reaches beyond localhost. If a new test would, mock `fetch` or use a
   local stub instead.
