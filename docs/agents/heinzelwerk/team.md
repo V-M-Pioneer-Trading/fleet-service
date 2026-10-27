@@ -13,7 +13,7 @@ How heinzelwerk agents work in this repo. Mode rules (single repo vs workspace) 
   4. `npm run openapi --silent && git diff --exit-code openapi.json`
   5. `npm run lint --silent`
   6. `npm test --silent -- --silent`
-- **Security**: gitleaks pre-commit hook (`gitleaks git --pre-commit --staged` in `.git/hooks/pre-commit`, so every worktree runs it) · dependency audit in checks
+- **Security**: no secret scan runs yet: gitleaks is not installed and no pre-commit hook exists (planned: `gitleaks git --pre-commit --staged` in `.git/hooks/pre-commit`), so check every diff for secrets by eye · dependency audit in checks
 - **Coding standards**: `CLAUDE.md` in this repo; lint rules come from `@v-m-pioneer-trading/eslint-config` and change only by a release of that package
 - **Risk areas** (validator reviews diffs touching these on Opus):
   - `src/auth.ts` (`fleetRequirement`, scopes): a mutating GET, or a mutation without `fleet:control`, is a hole
