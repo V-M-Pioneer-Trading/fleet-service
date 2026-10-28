@@ -34,4 +34,9 @@ Verified against origin/main 6346b94 on 2026-10-28. Facts only, each with its ev
    - Pacing headers (retry-after, x-ratelimit-limit/remaining/reset) relayed on failure only (src/spacetraders/errors.ts:16-25,40-45; src/spacetraders/client.ts:93; src/server.ts:126-130). CORS exposes them and allows only GET/HEAD/POST/PATCH (src/server.ts:62,68).
    - /health mounted twice because CloudFront routes only /api/fleet/* (src/server.ts:78-84).
    - lint and `tsc --noEmit` need src/generated; `npx jest <file>` skips codegen (CLAUDE.md:15-17).
-11. Docs outside docs/agents/ (no docs/ dir): README.md (270 lines: architecture, env, errors), CLAUDE.md (212 lines: commands, module map, dependency rules, conventions), openapi.json (generated spec, synced to meta).
+   - Do not re-decide st-gateway's relayed status here: it alone sees the credential, fleet-service relays it (src/server.ts:118-131).
+11. Docs outside docs/agents/ (no docs/ dir): README.md (271 lines: architecture, env, errors), CLAUDE.md (212 lines: commands, module map, dependency rules, conventions), openapi.json (generated spec, synced to meta).
+
+## Reference docs
+
+- README.md: read when changing error mapping (status per failure source, relayed st-gateway rows, pacing headers).

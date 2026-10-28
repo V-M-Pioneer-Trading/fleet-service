@@ -254,6 +254,7 @@ Deliberate, and worth knowing before you file a bug:
   fleet-service forwards the caller's `Authorization` verbatim on that call
   (meta#80 step 5); agent-service starts requiring `fleet:control` there in
   step 6. Until then the route stays open, which is meta#71.
+  Correction (2026-10-29): agent-service already maps POST /contracts/:contractId/deliveries to fleet:control, see ../agent-service/src/auth.ts:39.
 - **No retries anywhere.** A single failed upstream call fails the request.
   Rate limiting and back-off are st-gateway's job by design; transient network
   faults are the caller's problem.
