@@ -34,3 +34,7 @@ Facts verified against origin/main 6346b94 on 2026-10-27, each with `path:line`.
 - `shutdown()` under `require.main === module` unreachable from tests (server.ts:147-177; CLAUDE.md:117-118). `/api/fleet/health` exists because prod CloudFront routes only prefixed paths (server.ts:78-79).
 - Image and SSM document names wired into deploy (container.yml:146,185); deploy role trusts refs/heads/main only (container.yml:23). Authorization goes only to st-gateway, agent-service deliveries, clerk-client introspection; never log tokens (CLAUDE.md:51-58).
 11. DOCS OUTSIDE docs/agents (no docs/ dir in repo): README.md (270 lines: purpose, architecture, request flow, auth, setup, env table, API table, errors, OpenAPI, tests, known limitations); CLAUDE.md (212 lines: commands, module map, invariants, critical sequences, public surface, domain facts, testing, extending); openapi.json committed, synced to meta on push to main (README.md:230).
+
+## Reference docs
+
+- `README.md` Errors and Authentication tables: read when changing error mapping or the per-method requirement.
