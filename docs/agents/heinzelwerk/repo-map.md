@@ -32,14 +32,15 @@ Verified against 6346b94 2026-10-29.
 ## Money paths
 - Only outbound path to the game: `spaceTradersRequest` to `${ST_GATEWAY_URL}/proxy${path}`. `src/spacetraders/client.ts:64,73`
 - No local spend guard; rate budget is st-gateway's. `src/config.ts:21-23`
-- Fuel/credit moving: navigate `src/controllers/ships.controller.ts:43`; refuel (credits, optional `fromCargo`) `src/controllers/ships.controller.ts:82`, `src/spacetraders/types.ts:29-31`; contract deliver `src/controllers/contracts.controller.ts:16`; flight mode `PATCH /ships/{shipSymbol}/nav` (BURN spends extra fuel) `src/controllers/ships.controller.ts:110`
+- Fuel/credit moving: navigate `src/controllers/ships.controller.ts:43`; refuel (credits, optional `fromCargo`) `src/controllers/ships.controller.ts:82`, `src/spacetraders/types.ts:29-31`; flight mode `PATCH /ships/{shipSymbol}/nav` (BURN spends extra fuel) `src/controllers/ships.controller.ts:110`
+- Cargo moving, no credits: contract deliver `src/controllers/contracts.controller.ts:22-27`; ship-to-ship `POST /ships/{shipSymbol}/transfer` `src/controllers/ships.controller.ts:120,126`. The payout is `fulfill`, owned by agent-service. `../agent-service/src/auth.ts:35`
 - Buy/sell are deliberately in agent-service. `README.md:22-24`
 - No SpaceTraders base URL by design. `docker-compose.yml:9-11`
 
 ## Calls and called by
 - Calls st-gateway `/proxy`: `src/spacetraders/client.ts:73`; `../st-gateway/src/server.ts:331`
 - Calls auth-service introspection via clerk-client, config at startup. `src/server.ts:148-151`; URL/secret `README.md:86-87`
-- Calls agent-service `POST {AGENT_SERVICE_URL}/contracts/{id}/deliveries` `{shipSymbol,tradeSymbol,units}` with caller's Authorization, best-effort, errors only logged. `src/controllers/contracts.controller.ts:50-83`, `src/config.ts:24`; receiver `../agent-service/contract/fixtures/routes.ts:163-167`
+- Calls agent-service `POST {AGENT_SERVICE_URL}/contracts/{id}/deliveries` `{shipSymbol,tradeSymbol,units}` with caller's Authorization, best-effort, errors only logged. `src/controllers/contracts.controller.ts:50-83`, `src/config.ts:24`; receiver `../agent-service/src/controllers/contracts.controller.ts:75-76`
 - Called by command-interface `../command-interface/src/api/fleetService.ts:23-75` (base `../command-interface/src/api/config.ts:7`)
 - Called by automation-service `../automation-service/src/gameClients.ts:344,434` (`FLEET_SERVICE_URL` `../automation-service/src/config.ts:184`)
 - Vendored `src/testSupport/gateway-errors.json`, copy of `../meta/fixtures/gateway-errors.json`; used by `src/__tests__/gatewayErrorConformance.test.ts:16`
@@ -67,7 +68,7 @@ Verified against 6346b94 2026-10-29.
 - No audit step in CI. `.github/workflows/container.yml:43-75`
 
 ## Patterns
-- New ship action: one controller method calling `spaceTradersRequest("POST", shipPath(...), authorization, body)`; never inline paths or bare fetch. `src/controllers/ships.controller.ts:30`, `CLAUDE.md` "## Extending" (:191)
+- New ship action: one controller method calling `spaceTradersRequest("POST", shipPath(...), authorization, body)`; never inline paths or bare fetch. `src/controllers/ships.controller.ts:30`, `CLAUDE.md` "## Extending" (:193)
 - Body types in `src/spacetraders/types.ts:9-46`; unknown field gives 400 (`throw-on-extras`). `tsoa.json:3`
 - `app` is `secured(express())`: an undeclared route refuses to start. `src/server.ts:45-49`
 - Errors `{error:{message}}`, 400 adds `fields`. `src/server.ts:25-27,113-141`
@@ -86,4 +87,4 @@ Verified against 6346b94 2026-10-29.
 - Pacing headers relayed and CORS-exposed. `src/server.ts:68,127`, `src/spacetraders/errors.ts:40`
 - Controllers must not import `server.ts` (cycle); never import src/generated outside `server.ts`. `CLAUDE.md` "### Dependency rules" (CLAUDE.md:36)
 - Infra passes env vars: apply the infra stack before deploying an image needing new ones. `../V-M-Pioneer-Trading_infrastructure/fleet-service/main.tf:143`, `CLAUDE.md:132`
-- Update `CLAUDE.md` in the same PR as the change it describes. `CLAUDE.md:210`
+- Update `CLAUDE.md` in the same PR as the change it describes. `CLAUDE.md:212`

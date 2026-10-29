@@ -185,6 +185,8 @@ Things outside this repo depend on. Changing any of them is a coordinated change
 - Suite is currently 7 files / 71 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
+
+  Correction (2026-10-29): the suite is 8 test files / 87 tests, see `jest.config.js:5` (the jest root); counted 2026-10-29 @ 6346b94 with `npx jest` → 8 suites, 87 tests.
 - No test reaches beyond localhost. If a new test would, mock `fetch` or use a
   local stub instead.
 
