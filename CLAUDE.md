@@ -185,6 +185,8 @@ Things outside this repo depend on. Changing any of them is a coordinated change
 - Suite is currently 7 files / 71 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
+
+  Correction (2026-10-29): the suite is 8 test files / 87 tests, see `jest.config.js:5` (the jest root); counted 2026-10-29 @ 6346b94 with `npx jest` → 8 suites, 87 tests.
 - No test reaches beyond localhost. If a new test would, mock `fetch` or use a
   local stub instead.
 
@@ -210,3 +212,13 @@ Things outside this repo depend on. Changing any of them is a coordinated change
 **Update this file in the same PR as the change it describes.** A module map,
 an invariant list and a public-surface table are only worth reading if they are
 true; stale ones are worse than none.
+
+## Agent skills (heinzelwerk)
+
+- **Precedence**: for heinzelwerk team work, these pointers override any other agent-skills block in this file.
+- **Issue tracker**: GitHub issues, one tracker for the workspace in V-M-Pioneer-Trading/meta. See `docs/agents/heinzelwerk/issue-tracker.md` before creating, reading, or labelling issues.
+- **Triage labels**: the five canonical labels, defined in meta only. See `docs/agents/heinzelwerk/triage-labels.md` before applying any label.
+- **Domain docs**: multi-context workspace, one context per repo; map in `../meta/GLOSSARY-MAP.md`. Read `docs/agents/heinzelwerk/domain.md` before exploring code or naming anything.
+- **Team rules**: read `docs/agents/heinzelwerk/team.md` before any team task.
+- **Repo map**: see `docs/agents/heinzelwerk/repo-map.md` when locating code.
+- **Learnings**: read `../meta/docs/agents/heinzelwerk/learnings.md` before starting any task.
