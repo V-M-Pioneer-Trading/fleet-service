@@ -53,6 +53,7 @@ Verified against 6346b94 2026-10-29.
 - Scripts: `build` (tsoa spec-and-routes && tsc), `start`, `dev`, `openapi`, `pretest` (codegen), `test` (jest), `lint` (`--max-warnings 0`). `package.json:10-16`; Node >=24 `package.json:7`
 - Lint and `tsc --noEmit` need src/generated/ first; single suite `npx jest <file>` skips codegen. `CLAUDE.md:15-17`
 - Docker: `docker compose up --build` (`docker-compose.yml:1-21`); image `Dockerfile:1-16`, `npm ci` `Dockerfile:3-4`
+- Docker local run needs auth-service running and `AUTH_INTROSPECTION_SECRET` exported to its value; compose refuses without it. `docker-compose.yml:17-18`, `README.md:123-124`
 - Optional env: `PORT` 3001, `ST_GATEWAY_URL`, `AGENT_SERVICE_URL`, `CORS_ALLOWED_ORIGIN`, `UPSTREAM_TIMEOUT_MS` 30000. `src/config.ts:20-30`
 - Prod env set in docker run. `../V-M-Pioneer-Trading_infrastructure/fleet-service/main.tf:143`
 - Git-ignored: `node_modules/`, `dist/`, src/generated/, `.env`. `./.gitignore:1-4`
