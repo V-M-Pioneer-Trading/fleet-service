@@ -32,7 +32,7 @@ Verified against 6346b94 2026-10-29.
 ## Money paths
 - Only outbound path to the game: `spaceTradersRequest` to `${ST_GATEWAY_URL}/proxy${path}`. `src/spacetraders/client.ts:64,73`
 - No local spend guard; rate budget is st-gateway's. `src/config.ts:21-23`
-- Fuel/credit moving: navigate `src/controllers/ships.controller.ts:43`; refuel (credits, optional `fromCargo`) `src/controllers/ships.controller.ts:82`, `src/spacetraders/types.ts:29-31`; contract deliver `src/controllers/contracts.controller.ts:16`
+- Fuel/credit moving: navigate `src/controllers/ships.controller.ts:43`; refuel (credits, optional `fromCargo`) `src/controllers/ships.controller.ts:82`, `src/spacetraders/types.ts:29-31`; contract deliver `src/controllers/contracts.controller.ts:16`; flight mode `PATCH /ships/{shipSymbol}/nav` (BURN spends extra fuel) `src/controllers/ships.controller.ts:110`
 - Buy/sell are deliberately in agent-service. `README.md:22-24`
 - No SpaceTraders base URL by design. `docker-compose.yml:9-11`
 

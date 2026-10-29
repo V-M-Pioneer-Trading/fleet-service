@@ -10,7 +10,7 @@ How heinzelwerk agents work in this repo. Mode rules (single repo vs workspace) 
   - `npm run openapi && test -z "$(git status --porcelain -- openapi.json)"`
   - `npm run lint`
   - `npm test`
-  - `npm audit --audit-level=high (red on main: V-M-Pioneer-Trading/meta#136)`
+  - `npm audit --audit-level=high (red on main: V-M-Pioneer-Trading/meta#136; not in CI)`
   - `docker buildx build --platform linux/arm64 . (unverified locally: docker daemon not running)`
 - **Verified against**: 6346b94 2026-10-29 (checks and every ref in this file; retro bumps it)
 - **Coding standards**: `eslint.config.mjs:1` (shared `@v-m-pioneer-trading/eslint-config` `base`), `package.json:16` lint with `--max-warnings 0`; plus `CLAUDE.md` "## Invariants" (:47)
@@ -19,7 +19,7 @@ How heinzelwerk agents work in this repo. Mode rules (single repo vs workspace) 
   - `src/auth.ts:15,27-28`: access policy is by HTTP method only (GET = any verified session, every other method = `fleet:control`); a new GET route is automatically a read
   - `src/server.ts:45-49,83-84,91,101`: auth is on the router mount, not per route; `GET /health`, `/api/fleet/health`, `/api/fleet/swagger*` are unauthenticated
   - `src/server.ts:56-72`: CORS preflight answered before the guard; its `methods` list must match the router's method policy
-  - `POST /ships/{shipSymbol}/navigate`, `/refuel`, `POST /contracts/{contractId}/deliver` spend fuel or credits, no local spend guard: `src/controllers/ships.controller.ts:43,82`, `src/controllers/contracts.controller.ts:16`; `/refuel` body `fromCargo`, `src/spacetraders/types.ts:29-31`
+  - `POST /ships/{shipSymbol}/navigate`, `/refuel`, `POST /contracts/{contractId}/deliver` spend fuel or credits, and `PATCH /ships/{shipSymbol}/nav` (flight mode; BURN spends extra fuel) `src/controllers/ships.controller.ts:110`, no local spend guard: `src/controllers/ships.controller.ts:43,82`, `src/controllers/contracts.controller.ts:16`; `/refuel` body `fromCargo`, `src/spacetraders/types.ts:29-31`
   - Every SpaceTraders call goes through `spaceTradersRequest` to st-gateway `/proxy` (shared rate budget, injects the game credential); no bare `fetch`, no SpaceTraders base URL: `src/spacetraders/client.ts:64,73`, `docker-compose.yml:9-11`
   - Caller `Authorization` is forwarded to st-gateway (priority lane) and agent-service only: `src/spacetraders/client.ts:76`, `src/controllers/contracts.controller.ts:56`
   - Delivery bookkeeping to agent-service is best-effort; a failure after a successful SpaceTraders deliver is swallowed: `src/controllers/contracts.controller.ts:50-83`
