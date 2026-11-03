@@ -182,11 +182,9 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   the case rather than being skipped, so a copy that falls behind says so
   instead of quietly checking less. `resolveJsonModule` puts the fixture in
   `dist/` beside the compiled tests; nothing at runtime imports it.
-- Suite is currently 7 files / 71 tests and has no known flakes; it was run 5×
+- Suite is currently 8 files / 87 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
-
-  Correction (2026-10-29): the suite is 8 test files / 87 tests, see `jest.config.js:5` (the jest root); counted 2026-10-29 @ 6346b94 with `npx jest` → 8 suites, 87 tests.
 - No test reaches beyond localhost. If a new test would, mock `fetch` or use a
   local stub instead.
 
@@ -223,3 +221,4 @@ true; stale ones are worse than none.
 - **Out of scope**: see `../meta/docs/agents/heinzelwerk/out-of-scope.md` before proposing or triaging discovered work.
 - **Repo map**: see `docs/agents/heinzelwerk/repo-map.md` when locating code.
 - **Learnings**: read `../meta/docs/agents/heinzelwerk/learnings.md` before starting any task.
+- **Sibling paths** (workspace mode only): `../<repo>/…` above is relative to this repo's main checkout, i.e. the workspace folder. From a task worktree (`.claude/worktrees/<x>`), resolve it as `$(cd "$(git rev-parse --git-common-dir)/../.." && pwd)/<repo>/…`.

@@ -87,4 +87,4 @@ Verified against 6346b94 2026-10-29.
 - Pacing headers relayed and CORS-exposed. `src/server.ts:68,127`, `src/spacetraders/errors.ts:40`
 - Controllers must not import `server.ts` (cycle); never import src/generated outside `server.ts`. `CLAUDE.md` "### Dependency rules" (CLAUDE.md:36)
 - Infra passes env vars: apply the infra stack before deploying an image needing new ones. `../V-M-Pioneer-Trading_infrastructure/fleet-service/main.tf:143`, `CLAUDE.md:132`
-- Update `CLAUDE.md` in the same PR as the change it describes. `CLAUDE.md:212`
+- Update `CLAUDE.md` in the same PR as the change it describes. `CLAUDE.md:210`
