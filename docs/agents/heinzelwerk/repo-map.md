@@ -68,7 +68,7 @@ Verified against 6346b94 2026-10-29.
 - No audit step in CI. `.github/workflows/container.yml:43-75`
 
 ## Patterns
-- New ship action: one controller method calling `spaceTradersRequest("POST", shipPath(...), authorization, body)`; never inline paths or bare fetch. `src/controllers/ships.controller.ts:30`, `CLAUDE.md` "## Extending" (:193)
+- New ship action: one controller method calling `spaceTradersRequest("POST", shipPath(...), authorization, body)`; never inline paths or bare fetch. `src/controllers/ships.controller.ts:30`, `CLAUDE.md` "## Extending" (:191)
 - Body types in `src/spacetraders/types.ts:9-46`; unknown field gives 400 (`throw-on-extras`). `tsoa.json:3`
 - `app` is `secured(express())`: an undeclared route refuses to start. `src/server.ts:45-49`
 - Errors `{error:{message}}`, 400 adds `fields`. `src/server.ts:25-27,113-141`
