@@ -1,0 +1,6 @@
+# Corrections
+
+Append-only history of in-place fixes to this repo's original docs; the docs themselves carry no history.
+
+- 2026-11-03 CLAUDE.md:185: was "Suite is currently 7 files / 71 tests and has no known flakes; it was run 5× clean at the last change." → now "Suite is currently 8 files / 87 tests and has no known flakes; it was run 5× clean at the last change.", see jest.config.js:5; why: the suite grew; `npx jest` over that root at origin/main 6346b94 runs 8 suites, 87 tests (re-run 2026-11-03)
+- 2026-11-03 README.md:253: was "**The delivery record is authenticated only once agent-service enforces it.** fleet-service forwards the caller's `Authorization` verbatim on that call (meta#80 step 5); agent-service starts requiring `fleet:control` there in step 6. Until then the route stays open, which is meta#71." → now "**The delivery record is authenticated by agent-service.** fleet-service forwards the caller's `Authorization` verbatim on that call (meta#80 step 5); agent-service requires `fleet:control` there (step 6, meta#71).", see V-M-Pioneer-Trading/agent-service src/auth.ts:39; why: step 6 of V-M-Pioneer-Trading/meta#80 landed and V-M-Pioneer-Trading/meta#71 is closed; the forward is src/controllers/contracts.controller.ts:56

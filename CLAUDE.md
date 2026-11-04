@@ -182,7 +182,7 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   the case rather than being skipped, so a copy that falls behind says so
   instead of quietly checking less. `resolveJsonModule` puts the fixture in
   `dist/` beside the compiled tests; nothing at runtime imports it.
-- Suite is currently 7 files / 71 tests and has no known flakes; it was run 5×
+- Suite is currently 8 files / 87 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
 - No test reaches beyond localhost. If a new test would, mock `fetch` or use a
@@ -210,3 +210,15 @@ Things outside this repo depend on. Changing any of them is a coordinated change
 **Update this file in the same PR as the change it describes.** A module map,
 an invariant list and a public-surface table are only worth reading if they are
 true; stale ones are worse than none.
+
+## Agent skills (heinzelwerk)
+
+- **Precedence**: for heinzelwerk team work, these pointers override any other agent-skills block in this file.
+- **Issue tracker**: GitHub issues, one tracker for the workspace in V-M-Pioneer-Trading/meta. See `docs/agents/heinzelwerk/issue-tracker.md` before creating, reading, or labelling issues.
+- **Triage labels**: the five canonical labels, defined in meta only. See `docs/agents/heinzelwerk/triage-labels.md` before applying any label.
+- **Domain docs**: multi-context workspace, one context per repo; map in `../meta/GLOSSARY-MAP.md`. Read `docs/agents/heinzelwerk/domain.md` before exploring code or naming anything.
+- **Team rules**: read `docs/agents/heinzelwerk/team.md` before any team task.
+- **Out of scope**: see `../meta/docs/agents/heinzelwerk/out-of-scope.md` before proposing or triaging discovered work.
+- **Repo map**: see `docs/agents/heinzelwerk/repo-map.md` when locating code.
+- **Learnings**: read `../meta/docs/agents/heinzelwerk/learnings.md` before starting any task.
+- **Sibling paths** (workspace mode only): `../<repo>/…` above is relative to this repo's main checkout, i.e. the workspace folder. From a task worktree (`.claude/worktrees/<x>`), resolve it as `$(cd "$(git rev-parse --git-common-dir)/../.." && pwd)/<repo>/…`.
