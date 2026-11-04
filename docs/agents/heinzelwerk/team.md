@@ -10,7 +10,7 @@ How heinzelwerk agents work in this repo. Mode rules (single repo vs workspace) 
   - `npm run openapi && test -z "$(git status --porcelain -- openapi.json)"`
   - `npm run lint`
   - `npm test`
-  - `npm audit --audit-level=high` (red on main: V-M-Pioneer-Trading/meta#136; not in CI)
+  - `npm audit --audit-level=high` (not in CI)
   - `docker buildx build --platform linux/arm64 .` (unverified locally: docker daemon not running)
 - **Verified against**: 6346b94 2026-10-29 (checks and every ref in this file; retro bumps it)
 - **Coding standards**: `eslint.config.mjs:1` (shared `@v-m-pioneer-trading/eslint-config` `base`), `package.json:16` lint with `--max-warnings 0`; plus `CLAUDE.md` "## Invariants" (:47)
