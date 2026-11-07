@@ -227,7 +227,7 @@ advertises what to steal.
 
 ## OpenAPI spec
 
-The API spec is committed at `openapi.json` in the repo root. Regenerate it with `npm run openapi` (no server, database or network needed) and commit the result. CI runs the same command and fails if `openapi.json` differs from what is committed. Pushes to main will sync it to meta's `openapi/fleet-service.json`. The runtime Swagger UI still reads the gitignored `src/generated/swagger.json`.
+The API spec is committed at `openapi.json` in the repo root. Regenerate it with `npm run openapi` (no server, database or network needed) and commit the result. CI runs the same command and fails if `openapi.json` differs from what is committed. Pushes to main will sync it to meta's `openapi/fleet-service.json`. The committed spec carries absolute paths (`/api/fleet/v1/...`, the mount), added by `scripts/write-openapi.cjs`; the runtime Swagger UI still reads the gitignored `src/generated/swagger.json`, whose paths are relative to the mount.
 
 ## Tests
 
@@ -257,9 +257,10 @@ Deliberate, and worth knowing before you file a bug:
 - **No retries anywhere.** A single failed upstream call fails the request.
   Rate limiting and back-off are st-gateway's job by design; transient network
   faults are the caller's problem.
-- **Response bodies are passed through untyped.** `src/spacetraders/types.ts`
-  models request bodies only; every response is `Record<string, unknown>`, so
-  an upstream schema change reaches the frontend unannounced.
+- **Response types document, they do not validate.** `src/spacetraders/types.ts`
+  declares a typed, open body for each route (so the spec gives clients real
+  types), but the body is still forwarded unmodified: an upstream schema change
+  reaches the frontend unannounced, and an unlisted field passes through.
 - **Swagger UI is unauthenticated.** The API shape is public to anyone who can
   reach the service. There are no secrets in it, but it is not access-gated.
 - **auth-service is on the hot path.** One localhost call per credentialed
