@@ -415,13 +415,57 @@
         "type": "object",
         "additionalProperties": {}
       },
+      "ShipSurveyDeposit": {
+        "properties": {
+          "symbol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "type": "object",
+        "additionalProperties": {}
+      },
+      "ShipSurvey": {
+        "description": "A survey as the survey route answers it. The closed `Survey` below is the request-side twin.",
+        "properties": {
+          "signature": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "deposits": {
+            "items": {
+              "$ref": "#/components/schemas/ShipSurveyDeposit"
+            },
+            "type": "array"
+          },
+          "expiration": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "signature",
+          "symbol",
+          "deposits",
+          "expiration",
+          "size"
+        ],
+        "type": "object",
+        "additionalProperties": {}
+      },
       "SurveyResponse": {
         "properties": {
           "data": {
             "properties": {
               "surveys": {
                 "items": {
-                  "$ref": "#/components/schemas/Survey"
+                  "$ref": "#/components/schemas/ShipSurvey"
                 },
                 "type": "array"
               },

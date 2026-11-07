@@ -194,21 +194,35 @@ describe("openapi spec", () => {
     }
   });
 
-  it("serves every operation in the spec (a route the spec lists is not a 404)", async () => {
-    const app = createTestApp();
-    const original = global.fetch;
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve("{}") });
-    try {
+  it("keeps response-side surveys open (only the request-side Survey is closed)", () => {
+    const route = `${MOUNT}/ships/{shipSymbol}/survey`;
+    const item = leaf("post", route, "data.surveys[]");
+    const deposit = leaf("post", route, "data.surveys[].deposits[]");
+    expect(item.additionalProperties).not.toBe(false);
+    expect(deposit.additionalProperties).not.toBe(false);
+    for (const f of ["signature", "symbol", "deposits", "expiration", "size"]) expect(isRequired(item, f)).toBe(true);
+    expect(isRequired(deposit, "symbol")).toBe(true);
+  });
+
+  describe("runtime tie", () => {
+    const originalFetch = global.fetch;
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it("serves every operation in the spec (a route the spec lists is not a 404)", async () => {
+      const app = createTestApp();
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve("{}") });
       for (const [route, ops] of Object.entries(spec.paths)) {
-        const url = route.replace(/\{[^}]+\}/g, "X-1");
+        const url = route.replace(/{[^}]+}/g, "X-1");
         for (const method of Object.keys(ops ?? {}) as ("get" | "post" | "patch")[]) {
           const req = request(app)[method](url).set("Authorization", bearer());
           const res = await (method === "get" ? req : req.send({}));
           expect([method, route, res.status === 404]).toEqual([method, route, false]);
         }
       }
-    } finally {
-      global.fetch = original;
-    }
+    });
   });
 });

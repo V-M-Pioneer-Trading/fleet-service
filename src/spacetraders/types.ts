@@ -120,6 +120,21 @@ export interface WaypointModifier {
   description?: string;
 }
 
+export interface ShipSurveyDeposit {
+  [key: string]: unknown;
+  symbol: string;
+}
+
+/** A survey as the survey route answers it. The closed `Survey` below is the request-side twin. */
+export interface ShipSurvey {
+  [key: string]: unknown;
+  signature: string;
+  symbol: string;
+  deposits: ShipSurveyDeposit[];
+  expiration: string;
+  size: string;
+}
+
 export interface ContractTerms {
   [key: string]: unknown;
   deadline?: string;
@@ -184,7 +199,7 @@ export interface ExtractWithSurveyResponse {
 
 export interface SurveyResponse {
   [key: string]: unknown;
-  data?: { [key: string]: unknown; cooldown?: Cooldown; surveys?: Survey[] };
+  data?: { [key: string]: unknown; cooldown?: Cooldown; surveys?: ShipSurvey[] };
 }
 
 export interface RefuelShipResponse {
