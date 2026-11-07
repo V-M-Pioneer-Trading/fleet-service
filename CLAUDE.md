@@ -29,7 +29,7 @@ it, never import from it outside `server.ts`.
 | `src/auth.ts` | `SCOPE_FLEET_CONTROL` and `fleetRequirement`, the per-method policy. No verification | the package's types only |
 | `src/spacetraders/client.ts` | The single outbound path to st-gateway: path encoding, `Bearer` construction, priority, timeout, and the relay of the gateway's status, message and pacing headers | `config`, `./errors` |
 | `src/spacetraders/errors.ts` | `UpstreamError` and `FORWARDED_HEADERS` — the pacing headers relayed from st-gateway, in the same order and casing it sends them | nothing |
-| `src/spacetraders/types.ts` | Request-body shapes tsoa validates against | nothing |
+| `src/spacetraders/types.ts` | Request-body shapes tsoa validates against (closed), and the open per-route response shapes that only feed the spec | nothing |
 | `src/controllers/*.controller.ts` | Route declarations. One `spaceTradersRequest` call each | `spacetraders/client`, `spacetraders/types`, (contracts only) `config` |
 | `src/testSupport/*` | Opaque test tokens and the center's answers for them, an in-process introspector, real HTTP stubs (`stubServers.ts`), `createTestApp` | `auth`, `server` |
 
@@ -182,7 +182,7 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   the case rather than being skipped, so a copy that falls behind says so
   instead of quietly checking less. `resolveJsonModule` puts the fixture in
   `dist/` beside the compiled tests; nothing at runtime imports it.
-- Suite is currently 8 files / 87 tests and has no known flakes; it was run 5×
+- Suite is currently 9 files / 115 tests and has no known flakes; it was run 5×
   clean at the last change. If you see an intermittent failure, suspect an
   unrestored `fetch` mock first.
 - No test reaches beyond localhost. If a new test would, mock `fetch` or use a
@@ -194,6 +194,11 @@ Things outside this repo depend on. Changing any of them is a coordinated change
   `spaceTradersRequest("POST", shipPath(shipSymbol, "<action>"), ...)`. Do not
   build the path inline. Rebuild so tsoa regenerates routes and the spec, then
   add the route to the README's API table.
+- **New route**: give it a typed `<Action>Response` interface in `spacetraders/types.ts`
+  (open, `[key: string]: unknown`) and add it to the hard-coded list in
+  `__tests__/openapi.test.ts`, which fails on a free-form success body. Never a
+  generic envelope (tsoa emits it closed) and never `@SuccessResponse(204)` (tsoa
+  would then answer 204 every time).
 - **New request body**: add the interface to `spacetraders/types.ts` and use it
   as the `@Body()` type. `noImplicitAdditionalProperties: "throw-on-extras"` is
   on, so an unexpected field is a 400 — that is intended.

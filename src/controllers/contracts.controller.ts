@@ -1,7 +1,7 @@
 import { Body, Controller, Header, Path, Post, Route, Tags } from "@tsoa/runtime";
 import { config } from "../config";
 import { contractPath, spaceTradersRequest } from "../spacetraders/client";
-import { DeliverContractRequestBody } from "../spacetraders/types";
+import { DeliverContractRequestBody, DeliverContractResponse } from "../spacetraders/types";
 
 @Route("contracts")
 @Tags("contracts")
@@ -18,8 +18,8 @@ export class ContractsController extends Controller {
     @Path() contractId: string,
     @Header("Authorization") authorization: string | undefined,
     @Body() body: DeliverContractRequestBody,
-  ): Promise<Record<string, unknown>> {
-    const result = await spaceTradersRequest<Record<string, unknown>>(
+  ): Promise<DeliverContractResponse> {
+    const result = await spaceTradersRequest<DeliverContractResponse>(
       "POST",
       contractPath(contractId, "deliver"),
       authorization,

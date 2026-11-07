@@ -1,16 +1,24 @@
-import { Body, Controller, Get, Header, Patch, Path, Post, Route, Tags } from "@tsoa/runtime";
+import { Body, Controller, Get, Header, Patch, Path, Post, Response, Route, Tags } from "@tsoa/runtime";
 import { shipPath, spaceTradersRequest } from "../spacetraders/client";
 import {
+  CargoResponse,
+  CooldownResponse,
+  DockShipResponse,
   ExtractRequestBody,
+  ExtractResponse,
+  ExtractWithSurveyResponse,
   NavigateRequestBody,
+  NavigateShipResponse,
+  OrbitShipResponse,
   PatchNavRequestBody,
+  PatchNavResponse,
   RefuelRequestBody,
+  RefuelShipResponse,
   Survey,
+  SurveyResponse,
   TransferCargoRequestBody,
+  TransferCargoResponse,
 } from "../spacetraders/types";
-
-/** Every route here answers with SpaceTraders' response body, unmodified. */
-type ShipActionResponse = Record<string, unknown>;
 
 // `Authorization` on every route here is the Clerk session server.ts's auth
 // middleware already verified before a request reaches a controller method.
@@ -26,7 +34,7 @@ export class ShipsController extends Controller {
   public async orbit(
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string
-  ): Promise<ShipActionResponse> {
+  ): Promise<OrbitShipResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "orbit"), authorization);
   }
 
@@ -35,7 +43,7 @@ export class ShipsController extends Controller {
   public async dock(
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string
-  ): Promise<ShipActionResponse> {
+  ): Promise<DockShipResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "dock"), authorization);
   }
 
@@ -45,7 +53,7 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string,
     @Body() body: NavigateRequestBody,
-  ): Promise<ShipActionResponse> {
+  ): Promise<NavigateShipResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "navigate"), authorization, body);
   }
 
@@ -55,7 +63,7 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string,
     @Body() body?: ExtractRequestBody,
-  ): Promise<ShipActionResponse> {
+  ): Promise<ExtractResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "extract"), authorization, body);
   }
 
@@ -65,7 +73,7 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string,
     @Body() body: Survey,
-  ): Promise<ShipActionResponse> {
+  ): Promise<ExtractWithSurveyResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "extract/survey"), authorization, body);
   }
 
@@ -74,7 +82,7 @@ export class ShipsController extends Controller {
   public async survey(
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string
-  ): Promise<ShipActionResponse> {
+  ): Promise<SurveyResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "survey"), authorization);
   }
 
@@ -84,16 +92,17 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string,
     @Body() body?: RefuelRequestBody,
-  ): Promise<ShipActionResponse> {
+  ): Promise<RefuelShipResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "refuel"), authorization, body);
   }
 
   /** Get the ship's current cooldown (e.g. after extract/survey). */
+  @Response(204, "No active cooldown: SpaceTraders answers with no body.")
   @Get("{shipSymbol}/cooldown")
   public async cooldown(
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string
-  ): Promise<ShipActionResponse> {
+  ): Promise<CooldownResponse> {
     return spaceTradersRequest("GET", shipPath(shipSymbol, "cooldown"), authorization);
   }
 
@@ -102,7 +111,7 @@ export class ShipsController extends Controller {
   public async cargo(
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string
-  ): Promise<ShipActionResponse> {
+  ): Promise<CargoResponse> {
     return spaceTradersRequest("GET", shipPath(shipSymbol, "cargo"), authorization);
   }
 
@@ -112,7 +121,7 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string,
     @Body() body: PatchNavRequestBody,
-  ): Promise<ShipActionResponse> {
+  ): Promise<PatchNavResponse> {
     return spaceTradersRequest("PATCH", shipPath(shipSymbol, "nav"), authorization, body);
   }
 
@@ -122,7 +131,7 @@ export class ShipsController extends Controller {
     @Path() shipSymbol: string,
     @Header("Authorization") authorization: string,
     @Body() body: TransferCargoRequestBody,
-  ): Promise<ShipActionResponse> {
+  ): Promise<TransferCargoResponse> {
     return spaceTradersRequest("POST", shipPath(shipSymbol, "transfer"), authorization, body);
   }
 }
